@@ -1,7 +1,7 @@
 {
   "name": "r-acinstitut",
   "version": "0.1.0",
-  "description": "Mirar y ver tu código pensar · R, desde dentro · AC Institut (Jupyter Book 2 / MyST)",
+  "description": "Mirar y ver tu código pensar · Entendiendo R, desde dentro · AC Institut (Jupyter Book 2 / MyST)",
   "scripts": {
     "trazas": "LANG=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 Rscript herramientas/trazar.R capitulos/*.md",
     "build": "myst build --html",

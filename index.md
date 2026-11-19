@@ -1,6 +1,6 @@
 ---
 title: Mirar y ver tu código pensar
-subtitle: R, desde dentro
+subtitle: Entendiendo R, desde dentro
 ---
 
 Un libro para aprender R viendo cómo piensa cada programa: línea a línea, con la memoria a la vista. Es el hermano del libro de Python de la colección, y está hecho con el mismo método. Cada idea parte de una situación cotidiana, se construye con código y se comprueba visualizando la ejecución.

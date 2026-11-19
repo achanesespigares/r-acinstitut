@@ -1,4 +1,4 @@
-# Mirar y ver tu código pensar · R, desde dentro
+# Mirar y ver tu código pensar · Entendiendo R, desde dentro
 
 Aprender R viendo cómo se ejecuta cada programa, línea a línea y con la memoria a la vista. Es el hermano del libro de Python de la colección. Está hecho con Jupyter Book 2 (motor MyST) y publicado en GitHub Pages.
 

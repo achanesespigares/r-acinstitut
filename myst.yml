@@ -1,10 +1,10 @@
-# Mirar y ver tu código pensar · R, desde dentro · AC Institut
+# Mirar y ver tu código pensar · Entendiendo R, desde dentro · AC Institut
 # Jupyter Book 2 (motor MyST). Construir:  npx myst build --html
 version: 1
 project:
   id: r-acinstitut
   title: Mirar y ver tu código pensar
-  subtitle: R, desde dentro
+  subtitle: Entendiendo R, desde dentro
   authors:
     - name: Antonio Chanes Espigares
   license: CC-BY-NC-SA-4.0
