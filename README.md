@@ -1,6 +1,6 @@
-# Programación en R · AC Institut
+# Mirar y ver tu código pensar · R, desde dentro
 
-*Ver el código pensar*: aprender R viendo cómo se ejecuta cada programa, línea a línea y con la memoria a la vista. Es el hermano del libro de Python de la colección. Está hecho con Jupyter Book 2 (motor MyST) y publicado en GitHub Pages.
+Aprender R viendo cómo se ejecuta cada programa, línea a línea y con la memoria a la vista. Es el hermano del libro de Python de la colección. Está hecho con Jupyter Book 2 (motor MyST) y publicado en GitHub Pages.
 
 ## Las dos rutas
 
