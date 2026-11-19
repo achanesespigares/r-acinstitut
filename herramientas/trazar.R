@@ -136,7 +136,7 @@ traza <- function(codigo, config) {
     estado
   }
   anota <- function(paso) {
-    if (length(pasos) >= LIMITE) stop("el programa da demasiados pasos (más de ", LIMITE, ")")
+    if (length(pasos) >= LIMITE && paso$tipo != "error") stop("el programa da demasiados pasos (más de ", LIMITE, ")")
     paso$estado <- foto()
     paso$salida <- lee_pantalla()
     paso$nfilas <- length(filas)
@@ -211,3 +211,14 @@ procesa <- function(fichero) {
 }
 
 if (!interactive()) for (f in commandArgs(trailingOnly = TRUE)) procesa(f)
+
+# ── El laboratorio: el navegador (webR) llama a esta función con el código del lector ──
+# Elige sola qué dibujar: si hay un for (i in seq_along(v)), el vector v con el puntero i.
+laboratorio <- function(codigo) {
+  cfg <- list(titulo = "Tu programa", etiqueta = "laboratorio", idea = "", fila_en = "fin_iteracion")
+  m <- regmatches(codigo, regexec("for\\s*\\(\\s*([A-Za-z.][A-Za-z0-9._]*)\\s+in\\s+seq_along\\(\\s*([A-Za-z.][A-Za-z0-9._]*)\\s*\\)", codigo))[[1]]
+  if (length(m) == 3) { cfg$foco <- m[3]; cfg$puntero <- m[2]; cfg$columnas <- list(m[2], paste0(m[3], "[", m[2], "]")) }
+  res <- tryCatch(list(config = cfg, traza = traza(codigo, cfg)),
+                  error = function(e) list(error = conditionMessage(e)))
+  as.character(toJSON(res, auto_unbox = TRUE, null = "null"))
+}

@@ -117,8 +117,13 @@ const PLANTILLA = `
 
 function render({ model, el }) {
   const C = model.get("config") || {};
+  if (C.tipo === "laboratorio") return renderLaboratorio(el, C);
   const D = model.get("traza");
   if (!D || !D.pasos) { el.textContent = "Falta la traza: ejecuta herramientas/trazar.R sobre este capítulo."; return; }
+  return dibujaTraza(el, C, D);
+}
+
+function dibujaTraza(el, C, D) {
   el.innerHTML = '<style>' + ESTILOS + '</style><div class="tz">' + PLANTILLA + "</div>";
   const q = s => el.querySelector(s);
   const P = D.pasos, L = D.codigo.split("\n"), cols = C.columnas || [];
@@ -128,6 +133,7 @@ function render({ model, el }) {
   q(".tz-tit").textContent = C.titulo || "";
   q(".tz-etq").textContent = C.etiqueta || "";
   q(".tz-idea").textContent = C.idea || "";
+  if (!C.idea) q(".tz-idea").style.display = "none";
   q(".tz-codigo").innerHTML = L.map((l, i) => '<span class="ln" data-n="' + (i + 1) + '"><span class="fl">▶</span><span class="no">' + (i + 1) + "</span>" + (colorea(l) || " ") + "</span>").join("");
   if (!cols.length) q(".tz-tabla-bloque").style.display = "none";
   q(".tz-tabla").querySelector("thead").innerHTML = "<tr>" + cols.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr>";
@@ -242,6 +248,137 @@ function render({ model, el }) {
   });
   pinta();
   return () => para();
+}
+
+
+
+// ── El laboratorio: el lector escribe R y lo ve ejecutarse, con R funcionando en el navegador (webR) ──
+const WEBR = "https://webr.r-wasm.org/v0.6.0/webr.mjs";
+const CLAVE_LAB = "acinstitut-laboratorio-r";
+const EJEMPLOS = [
+  { nombre: "Vectorizar", codigo: 'notas <- c(4.2, 7, 3.5, 8)\nsubidas <- notas + 0.5\naprobado <- subidas >= 5\nsum(aprobado)' },
+  { nombre: "El reciclado", codigo: 'x <- c(10, 20, 30, 40, 50)\ny <- c(1, 2)\nz <- numeric(length(x))\nfor (i in seq_along(x)) {\n  j <- (i - 1) %% length(y) + 1\n  z[i] <- x[i] + y[j]\n}\nz' },
+  { nombre: "Sumar con un for", codigo: 'notas <- c(7, 4, 9, 6)\ntotal <- 0\nfor (k in seq_along(notas)) {\n  total <- total + notas[k]\n}\ntotal / length(notas)' },
+  { nombre: "Un while que cuenta", codigo: 'n <- 1\npasos <- 0\nwhile (n < 100) {\n  n <- n * 3\n  pasos <- pasos + 1\n}\npasos' },
+  { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
+];
+const ESTILOS_LAB = `
+.lab{ --acento:#7A1F36; --suave:#F6F0EE; --tinta:#111; --banda:#6B6B6B; --fila:#D4D4D4; --fondo:#F4F4F4;
+  font:400 15px/1.55 "Arimo","Liberation Sans",Arial,sans-serif; color:var(--tinta); background:#fff; border:1px solid var(--fila);
+  border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px; margin:1.25rem 0; }
+.lab *{ box-sizing:border-box; }
+.lab-fila{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.lab-tit{ font:700 18px/1.2 "Montserrat",Arial,sans-serif; margin-right:auto; }
+.lab select,.lab button{ font:600 14px/1 "Montserrat",Arial,sans-serif; min-height:40px; padding:0 12px; border:2px solid var(--tinta); background:#fff; border-radius:6px; color:var(--tinta); }
+.lab button.pri{ background:var(--acento); border-color:var(--acento); color:#fff; cursor:pointer; }
+.lab button:disabled{ opacity:.5; cursor:default; }
+.lab-ed{ display:flex; border:2px solid var(--tinta); background:var(--fondo); }
+.lab-num{ font:400 14px/1.7 "IBM Plex Mono",monospace; color:#9A9A9A; text-align:right; padding:10px 8px; user-select:none; white-space:pre; overflow:hidden; }
+.lab textarea{ flex:1; min-width:0; font:400 14px/1.7 "IBM Plex Mono",monospace; border:0; background:transparent; padding:10px 10px 10px 4px; resize:vertical; min-height:200px; outline:none; white-space:pre; overflow:auto; tab-size:2; }
+.lab-estado{ font-size:14px; color:var(--banda); min-height:1.4em; }
+.lab-error{ border:2px solid var(--acento); background:var(--suave); border-radius:8px; padding:10px 12px; }
+.lab-error code{ font:500 13px/1.4 "IBM Plex Mono",monospace; white-space:pre-wrap; display:block; margin-top:6px; color:#5A1628; }
+`;
+
+let webRPromesa = null, trazarTexto = null;
+async function preparaR(avisa) {
+  if (!webRPromesa) webRPromesa = (async () => {
+    avisa("Descargando R para el navegador. La primera vez tarda un poco; después queda en caché.");
+    const { WebR } = await import(WEBR);
+    const webR = new WebR();
+    await webR.init();
+    avisa("Instalando jsonlite…");
+    await webR.installPackages(["jsonlite"], { quiet: true });
+    if (!trazarTexto) {
+      const r = await fetch(new URL("../datos/trazar.R", import.meta.url));
+      if (!r.ok) throw new Error("No encuentro herramientas/trazar.R en la web");
+      trazarTexto = await r.text();
+    }
+    await webR.FS.writeFile("/home/web_user/trazar.R", new TextEncoder().encode(trazarTexto));
+    await webR.evalRVoid('source("/home/web_user/trazar.R")');
+    return webR;
+  })().catch(e => { webRPromesa = null; throw e; });
+  return webRPromesa;
+}
+
+const PISTAS = [
+  [/unexpected end of input|final inesperado/i, "El código termina antes de tiempo: falta cerrar un paréntesis, una llave o unas comillas."],
+  [/unexpected symbol|símbolo inesperado/i, "Hay dos cosas seguidas sin nada entre ellas. ¿Falta un operador, una coma o un paréntesis?"],
+  [/unexpected '\)'|unexpected '\}'|unexpected ','/i, "Sobra un paréntesis, una llave o una coma (o falta lo que debería ir antes)."],
+  [/unexpected/i, "R no entiende esta parte del código: revisa la línea que marca el mensaje."],
+  [/object '(.+)' not found|objeto '(.+)' no encontrado/i, m => "R no encuentra la variable «" + (m[1] || m[2]) + "». ¿Está bien escrita? ¿La has creado antes de usarla?"],
+  [/could not find function "(.+)"|no se pudo encontrar la función "(.+)"/i, m => "R no conoce la función «" + (m[1] || m[2]) + "». ¿Está bien escrita?"],
+  [/non-numeric argument|argumento no-numérico/i, "Estás operando con algo que no es un número. ¿Hay un texto entre comillas?"],
+  [/demasiados pasos/i, "El programa no termina (o da muchísimas vueltas). ¿La condición del while llega a ser FALSE alguna vez?"],
+];
+function pista(msg) {
+  for (const [re, t] of PISTAS) { const m = msg.match(re); if (m) return typeof t === "function" ? t(m) : t; }
+  return "";
+}
+
+function renderLaboratorio(el, C) {
+  el.innerHTML = "<style>" + ESTILOS_LAB + '</style><div class="lab"><div class="lab-fila"><span class="lab-tit">' + esc(C.titulo || "Laboratorio de R") + "</span>" +
+    '<select aria-label="Ejemplos"><option value="">Ejemplos…</option>' + EJEMPLOS.map((e, i) => '<option value="' + i + '">' + esc(e.nombre) + "</option>").join("") + "</select></div>" +
+    '<div class="lab-ed"><div class="lab-num" aria-hidden="true"></div><textarea spellcheck="false" aria-label="Tu código de R" autocapitalize="off" autocorrect="off"></textarea></div>' +
+    '<div class="lab-fila"><button class="pri lab-run">Ejecutar paso a paso</button><span class="lab-estado" aria-live="polite"></span></div>' +
+    '<div class="lab-salida"></div></div>';
+  const ta = el.querySelector("textarea"), num = el.querySelector(".lab-num"), estado = el.querySelector(".lab-estado");
+  const btn = el.querySelector(".lab-run"), salida = el.querySelector(".lab-salida");
+  let limpia = null;
+  const numera = () => { num.textContent = ta.value.split("\n").map((_, i) => i + 1).join("\n"); num.scrollTop = ta.scrollTop; };
+  let guardado = null; try { guardado = localStorage.getItem(CLAVE_LAB); } catch (e) {}
+  ta.value = guardado || EJEMPLOS[1].codigo; numera();
+  ta.addEventListener("input", () => { numera(); try { localStorage.setItem(CLAVE_LAB, ta.value); } catch (e) {} });
+  ta.addEventListener("scroll", () => { num.scrollTop = ta.scrollTop; });
+  ta.addEventListener("keydown", e => {
+    if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("  ", ta.selectionStart, ta.selectionEnd, "end"); numera(); }
+    if (e.key === "Enter") {                    // mantener la sangría de la línea
+      const ini = ta.value.lastIndexOf("\n", ta.selectionStart - 1) + 1;
+      const sangria = ta.value.slice(ini).match(/^ */)[0] + (/\{\s*$/.test(ta.value.slice(ini, ta.selectionStart)) ? "  " : "");
+      e.preventDefault(); ta.setRangeText("\n" + sangria, ta.selectionStart, ta.selectionEnd, "end"); numera();
+    }
+  });
+  el.querySelector("select").addEventListener("change", e => {
+    if (e.target.value === "") return;
+    ta.value = EJEMPLOS[+e.target.value].codigo; numera(); e.target.value = "";
+    try { localStorage.setItem(CLAVE_LAB, ta.value); } catch (er) {}
+  });
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    if (limpia) { limpia(); limpia = null; }
+    salida.innerHTML = "";
+    try {
+      const webR = await preparaR(t => { estado.textContent = t; });
+      estado.textContent = "Ejecutando…";
+      await webR.FS.writeFile("/home/web_user/lab.R", new TextEncoder().encode(ta.value));
+      const tiempo = new Promise((_, no) => setTimeout(() => no(new Error("TIEMPO")), 15000));
+      const json = await Promise.race([webR.evalRString('laboratorio(paste(readLines("/home/web_user/lab.R", warn = FALSE, encoding = "UTF-8"), collapse = "\\n"))'), tiempo]);
+      const R = JSON.parse(json);
+      if (R.error) {
+        const p = pista(R.error);
+        salida.innerHTML = '<div class="lab-error"><b>R no ha podido ejecutar el programa.</b> ' + esc(p) + "<code>" + esc(R.error) + "</code></div>";
+        estado.textContent = "";
+      } else {
+        const cont = document.createElement("div"); salida.appendChild(cont);
+        const fin = R.traza.pasos[R.traza.pasos.length - 1];
+        if (fin.tipo === "error") R.config.idea = "R se ha detenido con un error. " + pista(fin.error);
+        limpia = dibujaTraza(cont, R.config, R.traza);
+        estado.textContent = (R.traza.pasos.length - 1) + " pasos. Pulsa «Paso ▶» o «Reproducir».";
+      }
+    } catch (e) {
+      if (e.message === "TIEMPO") {
+        estado.textContent = "";
+        salida.innerHTML = '<div class="lab-error"><b>El programa tarda demasiado.</b> Puede que tenga un bucle que no termina. He reiniciado R: revisa el código y vuelve a probar.</div>';
+        try { (await webRPromesa).close(); } catch (er) {}
+        webRPromesa = null;
+      } else {
+        estado.textContent = "";
+        salida.innerHTML = '<div class="lab-error"><b>No he podido arrancar R en este navegador.</b> Comprueba la conexión y vuelve a probar.<code>' + esc(e.message || e) + "</code></div>";
+      }
+    }
+    btn.disabled = false;
+  });
+  return () => { if (limpia) limpia(); };
 }
 
 export default { render };

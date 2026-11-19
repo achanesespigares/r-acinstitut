@@ -35,6 +35,10 @@ Debajo de los programas clave hay un visualizador. Así se usa:
 - Si R da un **aviso**, aparece en un recuadro ámbar: el cálculo se hace, pero algo no encaja.
 - La **tabla de traza** se rellena sola, una fila por vuelta del bucle.
 
+## El laboratorio
+
+En el [laboratorio](laboratorio.md) puedes escribir tu propio programa de R y verlo en el mismo visualizador. R funciona dentro del navegador, sin instalar nada.
+
 ## La misma idea en tres lenguajes
 
 En algunos capítulos hay un recuadro con el mismo problema resuelto en R, en Python y en Julia. Sirve para ver qué es propio de R y qué es común a todos los lenguajes.

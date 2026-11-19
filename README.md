@@ -22,7 +22,7 @@ El interruptor `widgets/rutas.mjs`, al principio de cada capítulo, oculta o mue
 myst.yml                  configuración e índice del libro
 index.md                  portada
 capitulos/                un fichero por capítulo
-widgets/traza-r.mjs       el visualizador de trazas de R (anywidget)
+widgets/traza-r.mjs       el visualizador de trazas de R y el laboratorio (webR, R en el navegador)
 widgets/rutas.mjs         el interruptor de las dos rutas
 herramientas/trazar.R     ejecuta los programas paso a paso y escribe las trazas en los capítulos
 estilo/ac-institut.css    piel AC Institut (vino, Montserrat, Arimo, IBM Plex Mono) y cápsulas «A fondo»
@@ -40,7 +40,7 @@ npm start           # vista previa en http://localhost:3000
 npm run build       # versión estática en _build/html
 ```
 
-Las trazas se generan en local y se guardan en los capítulos: la publicación no necesita R.
+Las trazas se generan en local y se guardan en los capítulos: la publicación no necesita R. El laboratorio carga webR 0.6.0 desde su CDN y ejecuta en el navegador `herramientas/trazar.R` (la publicación lo copia a `datos/`), con la función `laboratorio()`.
 
 ## Añadir un programa visualizado
 
