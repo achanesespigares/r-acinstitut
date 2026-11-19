@@ -1,0 +1,10 @@
+{
+  "title": "Programación en R · Ver el código pensar",
+  "upload_type": "lesson",
+  "description": "Libro interactivo para aprender R viendo cómo se ejecuta cada programa, línea a línea y con la memoria a la vista. Dos rutas en cada capítulo (base y a fondo) y laboratorio de R en el navegador con webR. AC Institut.",
+  "creators": [{ "name": "Chanes Espigares, Antonio" }],
+  "license": "cc-by-nc-sa-4.0",
+  "language": "spa",
+  "keywords": ["R", "programación", "estadística", "educación", "visualización de código", "Jupyter Book"],
+  "related_identifiers": [{ "identifier": "https://achanesespigares.github.io/r-acinstitut/", "relation": "isDocumentedBy", "resource_type": "publication-book" }]
+}
