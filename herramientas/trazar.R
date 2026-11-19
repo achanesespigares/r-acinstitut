@@ -126,8 +126,11 @@ traza <- function(codigo, config) {
   on.exit(close(pantalla))
   lee_pantalla <- function() paste(c(textConnectionValue(pantalla), ""), collapse = "\n")
 
+  orden <- character(0)                      # las variables, en el orden en que aparecen
   foto <- function() {
     nombres <- setdiff(ls(env), ocultar)
+    orden <<- c(orden, setdiff(nombres, orden))
+    nombres <- intersect(orden, nombres)
     estado <- lapply(nombres, function(n) describe(get(n, envir = env)))
     names(estado) <- nombres
     estado

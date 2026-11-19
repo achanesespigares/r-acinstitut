@@ -18,6 +18,7 @@ project:
     - file: capitulos/00-como-leer.md
     - title: Parte I · Primeros pasos con R
       children:
+        - file: capitulos/01-calculadora.md
         - file: capitulos/02-vectores.md
 site:
   template: book-theme

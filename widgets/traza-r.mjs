@@ -167,7 +167,14 @@ function render({ model, el }) {
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
       } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + b.v.length + " elementos." : "."));
     }
-    if (p.salida.length > prev.salida.length) frases.push("R escribe el resultado en la consola.");
+    if (p.salida.length > prev.salida.length) {
+      const nueva = p.salida.slice(prev.salida.length).trim().split("\n");
+      const linea = (L[p.linea - 1] || "").trim();
+      const muestra1 = nueva.length === 1 ? code(nueva[0]) : "varias líneas";
+      if (/^[\w.]+$/.test(linea) && p.estado[linea]) frases.push("Escribir solo " + code(linea) + " hace que R muestre su valor en la consola: " + muestra1 + "." +
+        (/^\[1\]/.test(nueva[0]) && prev.salida === "" ? " El <code>[1]</code> del principio indica que la fila empieza en el elemento 1." : ""));
+      else frases.push("R escribe en la consola " + muestra1 + ".");
+    }
     if (p.avisos) frases.push("Y R da un <b>aviso</b>: el cálculo se hace, pero algo no encaja.");
     return frases.length ? frases.join(" ") : "Se ejecuta la línea " + p.linea + ".";
   }
