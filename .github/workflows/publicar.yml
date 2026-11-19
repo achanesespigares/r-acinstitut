@@ -1,0 +1,40 @@
+# Publica el libro en GitHub Pages en cada push a main.
+# Activa Pages en el repositorio: Settings → Pages → Source: GitHub Actions.
+name: Publicar libro
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # Si publicas en un dominio propio (p. ej. r.acinstitut.com), borra esta línea
+      BASE_URL: /${{ github.event.repository.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar MyST (versión fijada en package.json)
+        run: npm ci
+      - name: Construir el libro
+        run: npx myst build --html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_build/html
+      - id: deployment
+        uses: actions/deploy-pages@v4

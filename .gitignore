@@ -1,0 +1,5 @@
+node_modules/
+_build/
+_templates/
+.DS_Store
+.Rhistory

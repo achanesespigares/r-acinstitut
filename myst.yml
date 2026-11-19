@@ -1,0 +1,27 @@
+# Programación en R · AC Institut
+# Jupyter Book 2 (motor MyST). Construir:  npx myst build --html
+version: 1
+project:
+  id: r-acinstitut
+  title: Programación en R
+  subtitle: Ver el código pensar
+  authors:
+    - name: Antonio Chanes Espigares
+  license: CC-BY-NC-SA-4.0
+  github: https://github.com/achanesespigares/r-acinstitut
+  exclude:
+    - herramientas/**
+    - README.md
+    - node_modules/**
+  toc:
+    - file: index.md
+    - file: capitulos/00-como-leer.md
+    - title: Parte I · Primeros pasos con R
+      children:
+        - file: capitulos/02-vectores.md
+site:
+  template: book-theme
+  options:
+    logo_text: ac | institut · R
+    style: estilo/ac-institut.css
+    folders: true
