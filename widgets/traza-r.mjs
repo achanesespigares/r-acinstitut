@@ -26,7 +26,8 @@ const ESTILOS = `
   text-transform:uppercase; display:flex; justify-content:space-between; gap:8px; }
 .tz-barra.negro{ background:var(--tinta); }
 pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; background:var(--fondo); padding:6px 0; border:0; }
-.tz .ln{ display:flex; align-items:center; white-space:pre; padding-right:12px; border-left:4px solid transparent; }
+.tz .ln{ display:flex; align-items:center; white-space:pre; padding-right:12px; border-left:4px solid transparent; min-width:max-content; }
+.tz .ln > span{ flex:none; min-width:auto; }   /* que el coloreado no se encoja si la línea no cabe: el código se desplaza */
 .tz .ln .fl{ width:20px; flex:none; text-align:center; font-size:11px; color:transparent; }
 .tz .ln .no{ width:2.4ch; flex:none; text-align:right; color:var(--filete); margin-right:12px; }
 .tz .ln.hecha{ border-left-color:var(--acento); background:var(--suave); }
@@ -59,6 +60,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .cas.foco .idx{ color:var(--acento); font-weight:600; }
 .tz .grande .cas .v{ min-width:54px; height:52px; font-size:19px; }
 .tz .grande{ padding-top:34px; }
+.tz .grande.largo .cas .v{ min-width:40px; font-size:14px; padding:0 3px; }
 .tz .puntero{ position:absolute; top:0; display:flex; flex-direction:column; align-items:center; gap:2px; transition:left .35s ease; pointer-events:none; transform:translateX(-50%); }
 .tz .puntero .et{ font:600 12.5px/1 var(--mono); color:#fff; background:var(--acento); padding:4px 7px; border-radius:4px; white-space:nowrap; }
 .tz .puntero .flecha{ width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:8px solid var(--acento); }
@@ -194,7 +196,7 @@ function dibujaTraza(el, C, D) {
 
   function casillas(v, previo, opciones = {}) {
     const cambia = i => previo && previo.v && previo.v.length === v.v.length && previo.v[i] !== v.v[i];
-    return '<div class="fila-cas' + (opciones.grande ? " grande" : "") + '">' + v.v.map((x, i) =>
+    return '<div class="fila-cas' + (opciones.grande ? " grande" + (v.v.some(x => String(x).length > 4) ? " largo" : "") : "") + '">' + v.v.map((x, i) =>
       '<span class="cas' + (cambia(i) ? " cambia" : "") + (opciones.foco === i + 1 ? " foco" : "") + '"><span class="v">' + esc(x) + '</span><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + "</span></span>").join("") +
       (opciones.foco ? '<span class="puntero"><span class="et">' + esc(opciones.puntero) + " = " + opciones.foco + '</span><span class="flecha"></span></span>' : "") + "</div>";
   }
@@ -226,6 +228,11 @@ function dibujaTraza(el, C, D) {
     const f = el.querySelector(".grande"); if (!f) return;
     const c = f.querySelector(".cas.foco"), pt = f.querySelector(".puntero");
     if (c && pt) pt.style.left = (c.offsetLeft + c.offsetWidth / 2) + "px";
+    if (c && f.scrollWidth > f.clientWidth) {   // si la fila no cabe, se desplaza para que se vea la casilla del puntero
+      const izq = c.offsetLeft, der = izq + c.offsetWidth;
+      if (izq < f.scrollLeft) f.scrollLeft = izq - 8;
+      else if (der > f.scrollLeft + f.clientWidth) f.scrollLeft = der - f.clientWidth + 8;
+    }
   }
 
   function pinta() {

@@ -137,7 +137,7 @@ R vectoriza siempre, sin pedirlo. Python, con sus listas, necesita recorrerlas (
 
 ## Conexiones
 
-- La vectorización lleva a los **filtros**: `notas[notas >= 5]` elige las casillas que cumplen una condición. Es el siguiente capítulo.
+- La vectorización lleva a los **filtros**: `notas[notas >= 5]` elige las casillas que cumplen una condición. Es el [siguiente capítulo](03-indices-filtros.md).
 - El vector lógico que da una comparación es la base de `sum()` y `mean()` para contar y para calcular proporciones, que usarás en toda la parte de análisis de datos.
 - Las columnas de un **data frame** son vectores: todo lo de este capítulo vale para cada columna de una tabla.
 

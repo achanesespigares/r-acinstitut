@@ -20,11 +20,11 @@ Elige aquí tu ruta. La elección se recuerda en todo el libro, y puedes cambiar
 
 ## Lo que hay ahora
 
-El libro está en construcción. Ya están escritos los dos primeros capítulos, [R como calculadora](capitulos/01-calculadora.md) y [Vectores: en R todo es un vector](capitulos/02-vectores.md), con sus dos rutas y sus visualizadores, y el [laboratorio](capitulos/laboratorio.md), donde puedes escribir tu propio R y verlo ejecutarse en el navegador. Los demás capítulos llegarán por partes, en este orden:
+El libro está en construcción. Ya están escritos los tres primeros capítulos, [R como calculadora](capitulos/01-calculadora.md), [Vectores: en R todo es un vector](capitulos/02-vectores.md) e [Índices y filtros](capitulos/03-indices-filtros.md), con sus dos rutas y sus visualizadores, y el [laboratorio](capitulos/laboratorio.md), donde puedes escribir tu propio R y verlo ejecutarse en el navegador. Los demás capítulos llegarán por partes, en este orden:
 
 | Parte | Capítulos |
 |---|---|
-| I · Primeros pasos con R | **R como calculadora** · **Vectores** · Índices y filtros · Decidir y repetir · Funciones |
+| I · Primeros pasos con R | **R como calculadora** · **Vectores** · **Índices y filtros** · Decidir y repetir · Funciones |
 | II · Estructuras de datos | Factores · Listas · Matrices y arrays · Data frames · Cadenas · Fechas |
 | III · Análisis de datos | Leer datos · dplyr · tidyr · ggplot2 · Distribuciones · Simulación · Modelos |
 | IV · R por dentro | Entornos · Programación funcional · Objetos · Metaprogramación · Rendimiento |
