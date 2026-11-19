@@ -75,6 +75,11 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz-tabla td{ padding:6px 10px; border-bottom:1px solid var(--fila); }
 .tz-tabla tr.nueva td{ background:var(--suave); }
 .tz-nota{ font-size:12.5px; color:var(--banda); padding:8px 12px 10px; }
+.tz-teclas{ display:none; font:500 12.5px/1.3 var(--mono); color:var(--banda); flex-basis:100%; }
+.tz:fullscreen{ overflow:auto; padding:24px 4vw; border:0; border-radius:0; margin:0; }
+.tz:fullscreen > *{ zoom:1.25; }
+.tz:fullscreen .tz-teclas{ display:block; }
+.tz:focus{ outline:none; }
 @media (max-width:760px){ .tz-escena{ grid-template-columns:minmax(0,1fr); } }
 @media (prefers-reduced-motion:reduce){ .tz *{ transition:none !important; } }
 `;
@@ -104,7 +109,9 @@ const PLANTILLA = `
       <button class="tz-sig pri">Paso ▶</button>
       <button class="tz-play">Reproducir</button>
       <button class="tz-reset">Reiniciar</button>
+      <button class="tz-proy" aria-pressed="false" title="Pantalla completa para proyectar en clase (tecla F)">Proyectar</button>
       <span class="tz-cuenta"></span>
+      <span class="tz-teclas">→ paso · ← atrás · P reproducir · Inicio reiniciar · Esc salir</span>
     </div>
   </div>
   <div class="tz-col">
@@ -246,8 +253,27 @@ function dibujaTraza(el, C, D) {
     q(".tz-play").textContent = "Pausa";
     timer = setInterval(() => { if (k >= P.length - 1) return para(); k++; pinta(); }, 1100);
   });
+  // Proyectar: a pantalla completa con letra grande; teclado o mando de presentaciones (Av Pág / Re Pág)
+  const raiz = q(".tz"), proy = q(".tz-proy");
+  raiz.tabIndex = -1;
+  const proyectando = () => ((raiz.getRootNode().fullscreenElement || document.fullscreenElement) === raiz);
+  if (!document.fullscreenEnabled || !raiz.requestFullscreen) proy.remove();
+  else proy.addEventListener("click", () => { if (proyectando()) document.exitFullscreen(); else raiz.requestFullscreen().then(() => raiz.focus()).catch(() => {}); });
+  const alCambiarPantalla = () => {
+    const on = proyectando();
+    proy.setAttribute("aria-pressed", on ? "true" : "false");
+    proy.textContent = on ? "Salir de la proyección" : "Proyectar";
+    requestAnimationFrame(coloca);
+  };
+  document.addEventListener("fullscreenchange", alCambiarPantalla);
+  raiz.addEventListener("keydown", e => {
+    if (e.target.matches && e.target.matches("input, textarea, select")) return;
+    const acciones = { ArrowRight: ".tz-sig", PageDown: ".tz-sig", ArrowLeft: ".tz-ant", PageUp: ".tz-ant", Home: ".tz-reset", p: ".tz-play", P: ".tz-play", f: ".tz-proy", F: ".tz-proy" };
+    const b = acciones[e.key] && q(acciones[e.key]);
+    if (b && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); b.click(); }
+  });
   pinta();
-  return () => para();
+  return () => { para(); document.removeEventListener("fullscreenchange", alCambiarPantalla); };
 }
 
 
