@@ -37,8 +37,7 @@ jobs:
         run: |
           mkdir -p _build/html/datos
           cp herramientas/trazar.R _build/html/datos/
-          cp datos/*.csv _build/html/datos/
-          cp -r datos/graficos _build/html/datos/ 2>/dev/null || true
+          cp -r datos/. _build/html/datos/     # los CSV, los gráficos y las trazas de los visualizadores
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./_build/html

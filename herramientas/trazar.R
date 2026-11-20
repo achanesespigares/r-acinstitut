@@ -424,8 +424,15 @@ traza <- function(codigo, config) {
 }
 
 # ── Leer y escribir los capítulos ────────────────────────────────────────
+# Cada traza se guarda en su propio archivo, datos/trazas/<capítulo>-<n>.json, y la directiva del capítulo
+# solo lleva la configuración y el nombre del archivo. Con la traza dentro, las líneas eran tan largas
+# que MyST tardaba minutos en construir el libro; así tarda segundos.
+CARPETA_TRAZAS <- "datos/trazas"
 procesa <- function(fichero) {
   lineas <- readLines(fichero, encoding = "UTF-8", warn = FALSE)
+  base <- sub("\\.md$", "", basename(fichero))
+  dir.create(CARPETA_TRAZAS, recursive = TRUE, showWarnings = FALSE)
+  unlink(Sys.glob(file.path(CARPETA_TRAZAS, paste0(base, "-*.json"))))   # las de una pasada anterior
   n <- 0
   for (i in seq_along(lineas)) {
     if (!grepl("^```\\{anywidget\\} .*traza-r\\.mjs", lineas[i])) next
@@ -437,9 +444,10 @@ procesa <- function(fichero) {
     fin <- max(fins)
     ini <- max(which(seq_along(lineas) < fin & grepl("^```\\{code-cell\\} r", lineas)))
     codigo <- paste(lineas[(ini + 1):(fin - 1)], collapse = "\n")
-    datos$traza <- traza(codigo, datos$config)
-    lineas[i + 1] <- as.character(toJSON(datos, auto_unbox = TRUE, null = "null"))
     n <- n + 1
+    archivo <- file.path(CARPETA_TRAZAS, paste0(base, "-", n, ".json"))
+    writeLines(as.character(toJSON(traza(codigo, datos$config), auto_unbox = TRUE, null = "null")), archivo, useBytes = TRUE)
+    lineas[i + 1] <- as.character(toJSON(list(config = datos$config, archivo = archivo), auto_unbox = TRUE, null = "null"))
   }
   writeLines(lineas, fichero, useBytes = TRUE)
   message(fichero, ": ", n, " trazas")

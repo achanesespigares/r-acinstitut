@@ -192,9 +192,15 @@ const PLANTILLA = `
 function render({ model, el }) {
   const C = model.get("config") || {};
   if (C.tipo === "laboratorio") return renderLaboratorio(el, C);
-  const D = model.get("traza");
-  if (!D || !D.pasos) { el.textContent = "Falta la traza: ejecuta herramientas/trazar.R sobre este capítulo."; return; }
-  return dibujaTraza(el, C, D);
+  const D = model.get("traza"), archivo = model.get("archivo");
+  if (D && D.pasos) return dibujaTraza(el, C, D);
+  if (!archivo) { el.textContent = "Falta la traza: ejecuta herramientas/trazar.R sobre este capítulo."; return; }
+  // la traza está en su propio archivo JSON (en datos/trazas/, junto a trazar.R): se descarga al abrir la página
+  el.innerHTML = '<p style="font:500 13px/1.4 sans-serif;color:#6B6B6B;margin:0;padding:12px 0">Cargando el visualizador…</p>';
+  return fetch(new URL("../" + archivo, import.meta.url))
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(t => { el.innerHTML = ""; return dibujaTraza(el, C, t); })
+    .catch(e => { el.textContent = "No se ha podido cargar el visualizador (" + archivo + ")."; });
 }
 
 function dibujaTraza(el, C, D) {
