@@ -360,7 +360,7 @@ Para las pruebas, R tiene testthat; Python, pytest, con `assert` y `pytest.appro
 
 ## La grieta
 
-Nuestras funciones ya avisan cuando algo va mal, y las pruebas nos dicen que hacen lo que deben. Pero todo ese trabajo sigue dentro de la consola y de nuestros archivos de código. Al final de un análisis hay que **contarlo**: a un profesor, a un equipo, a quien tenga que decidir. Y copiar a mano números y gráficos a un documento es lento, y peligroso: si cambian los datos, el documento se queda viejo, y nadie sabe qué cifra salió de dónde. ¿Se puede escribir un documento que mezcle el texto, el código y sus resultados, y que se vuelva a generar solo cuando cambian los datos? Es lo que hace **Quarto**, el siguiente capítulo.
+Nuestras funciones ya avisan cuando algo va mal, y las pruebas nos dicen que hacen lo que deben. Pero todo ese trabajo sigue dentro de la consola y de nuestros archivos de código. Al final de un análisis hay que **contarlo**: a un profesor, a un equipo, a quien tenga que decidir. Y copiar a mano números y gráficos a un documento es lento, y peligroso: si cambian los datos, el documento se queda viejo, y nadie sabe qué cifra salió de dónde. ¿Se puede escribir un documento que mezcle el texto, el código y sus resultados, y que se vuelva a generar solo cuando cambian los datos? Es lo que hace [**Quarto**](25-informes-quarto.md), el siguiente capítulo.
 
 ## Ejercicios
 
