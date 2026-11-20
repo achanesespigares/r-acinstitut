@@ -67,6 +67,8 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .cas:first-child .v{ margin-left:0; }
 .tz .cas .idx{ font:500 11.5px/1 var(--mono); color:var(--banda); }
 .tz .cas .v{ position:relative; white-space:pre; }
+.tz .cas.mas .v{ border-style:dashed; color:var(--banda); font:italic 500 13px/1 var(--mono); padding:0 10px; margin-left:6px; }
+.tz .cas.mas::after{ content:""; height:11.5px; }
 .tz .fila-vert{ display:flex; flex-direction:column; border:2px solid var(--tinta); overflow-x:auto; }
 .tz .cas-v{ display:flex; gap:10px; align-items:baseline; padding:6px 8px; border-top:1px solid var(--filete); background:#fff; }
 .tz .cas-v:first-child{ border-top:0; }
@@ -222,9 +224,9 @@ function dibujaTraza(el, C, D) {
   q(".tz-nota").textContent = porLinea ? "Cada fila es el estado justo después de ejecutar esa línea." : "La fila de cada vuelta se escribe al terminarla.";
 
   const vec = (p, n) => p.estado[n];
-  const longitud = v => v && v.v ? v.v.length : 0;
+  const longitud = v => v && v.v ? (v.nv || v.v.length) : 0;
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const muestra = v => !v ? "" : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + ")") : v.t;
+  const muestra = v => !v ? "" : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t;
   const varDelFor = l => ((L[l - 1] || "").match(/for\s*\(\s*([\w.]+)\s+in\s+(.+)\)\s*\{?\s*$/) || []);
 
   function narra(p, prev) {
@@ -335,17 +337,17 @@ function dibujaTraza(el, C, D) {
         continue;
       }
       if (!a && b.u) { frases.push("Se crea " + code(n) + ", una diferencia de tiempos (" + code("difftime") + ") medida " + ({ days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" }[b.u] || "en " + b.u) + "."); continue; }
-      if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
-      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") : ", de tipo " + code(b.t)) + "."); continue; }
+      if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : longitud(b) + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
+      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
-      if (a.v && b.v && a.v.length === b.v.length) {
+      if (a.v && b.v && a.v.length === b.v.length && !a.nv && !b.nv) {
         const camb = b.v.map((x, i) => x !== a.v[i] ? i : -1).filter(i => i >= 0);
         const pos = i => b.n ? '"' + b.n[i] + '"' : String(i + 1);
         if (!camb.length && b.n && !igual(a.n, b.n)) { frases.push(code(n) + " recibe nombres: " + b.n.map(x => code(x)).join(", ").replace(/, ([^,]*)$/, " y $1") + ". Los valores no cambian; ahora cada casilla se puede pedir por su nombre."); continue; }
         if (camb.length === 1 && b.v.length > 1) frases.push("Cambia " + code(n + "[" + pos(camb[0]) + "]") + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
         else if (b.v.length === 1) frases.push(code(n) + " valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + ".");
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
-      } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + b.v.length + " elementos." : "."));
+      } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + " elementos." : "."));
     }
     if (p.salida.length > prev.salida.length) {
       const nueva = p.salida.slice(prev.salida.length).trim().split("\n");
@@ -371,6 +373,7 @@ function dibujaTraza(el, C, D) {
     return '<div class="fila-cas' + (opciones.grande ? " grande" + (v.v.some(x => String(x).length > 4) ? " largo" : "") : "") + '">' + v.v.map((x, i) =>
       '<span class="cas' + (cambia(i) ? " cambia" : "") + (opciones.foco === i + 1 ? " foco" : "") + (v.k && x === "NA" ? " na" : "") + '"><span class="v">' +
       (v.k && v.k[i] !== "NA" ? '<span class="cod">' + esc(v.k[i]) + "</span>" : "") + esc(x) + '</span><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + "</span></span>").join("") +
+      (v.nv ? '<span class="cas mas"><span class="v">… y ' + (v.nv - v.v.length).toLocaleString("es-ES") + ' más</span></span>' : "") +
       (opciones.foco ? '<span class="puntero"><span class="et">' + esc(opciones.puntero) + " = " + opciones.foco + '</span><span class="flecha"></span></span>' : "") + "</div>";
   }
 
@@ -385,7 +388,7 @@ function dibujaTraza(el, C, D) {
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const UNID = { days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" };
     const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
-      : v.v ? "longitud " + v.v.length + (v.u ? " · " + (UNID[v.u] || v.u) : "") + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
+      : v.v ? "longitud " + (v.nv || v.v.length).toLocaleString("es-ES") + (v.u ? " · " + (UNID[v.u] || v.u) : "") + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
     return '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
   }
 
@@ -502,7 +505,7 @@ function dibujaTraza(el, C, D) {
     if (v.t === "ggplot") return "un gráfico";
     if (v.d) return "una matriz de " + v.d.join(" × ");
     if (v.el) return "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos");
-    if (v.v) return v.v.length === 1 ? "el valor " + code(v.v[0]) : "un vector " + code(v.t) + " de " + v.v.length + " elementos";
+    if (v.v) return v.v.length === 1 ? "el valor " + code(v.v[0]) : "un vector " + code(v.t) + " de " + (v.nv || v.v.length).toLocaleString("es-ES") + " elementos";
     return "un valor de tipo " + code(v.t);
   }
 

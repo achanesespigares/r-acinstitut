@@ -77,8 +77,11 @@ describe <- function(x, prof = 0) {
     return(out)
   }
   if (is.atomic(x) && is.null(dim(x))) {
-    out <- list(t = class(x)[1], v = as.list(vapply(x, un_valor, "", USE.NAMES = FALSE)))
-    if (!is.null(names(x))) out$n <- as.list(names(x))
+    # un vector largo (más de 30 elementos): solo los 20 primeros, y nv con la longitud total
+    n <- length(x); xs <- if (n > 30) x[seq_len(20)] else x
+    out <- list(t = class(x)[1], v = as.list(vapply(xs, un_valor, "", USE.NAMES = FALSE)))
+    if (!is.null(names(x))) out$n <- as.list(names(xs))
+    if (n > 30) out$nv <- n
     return(out)
   }
   if (is.array(x) && length(dim(x)) %in% 2:3 && is.atomic(x) && length(x) <= 400) {

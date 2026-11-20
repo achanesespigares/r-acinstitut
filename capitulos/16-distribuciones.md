@@ -222,7 +222,7 @@ Las tres dan 0.0417. En Python y en Julia, la distribución es un objeto con sus
 
 ## La grieta
 
-Para la normal y la binomial hay una fórmula y una función de R que la calcula. Pero muchas preguntas no encajan en ninguna distribución con nombre. Si un test resta puntos por cada fallo, ¿qué nota se saca de media contestando al azar, y qué probabilidad hay de aprobar? En una clase de 30, ¿qué probabilidad hay de que dos alumnos cumplan años el mismo día? Hay una manera de responder sin fórmula: repetir el experimento miles de veces con números al azar y contar cuántas veces pasa. Es la **simulación**.
+Para la normal y la binomial hay una fórmula y una función de R que la calcula. Pero muchas preguntas no encajan en ninguna distribución con nombre. Si un test resta puntos por cada fallo, ¿qué nota se saca de media contestando al azar, y qué probabilidad hay de aprobar? En una clase de 30, ¿qué probabilidad hay de que dos alumnos cumplan años el mismo día? Hay una manera de responder sin fórmula: repetir el experimento miles de veces con números al azar y contar cuántas veces pasa. Es la [**simulación**](17-simulacion.md).
 
 ## Ejercicios
 

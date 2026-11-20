@@ -39,6 +39,7 @@ project:
         - file: capitulos/14-tidyr.md
         - file: capitulos/15-ggplot2.md
         - file: capitulos/16-distribuciones.md
+        - file: capitulos/17-simulacion.md
 site:
   template: book-theme
   options:
