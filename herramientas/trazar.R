@@ -35,7 +35,13 @@ un_valor <- function(e) {
 
 describe <- function(x) {
   if (is.function(x)) return(list(t = "function"))
-  if (is.factor(x)) return(list(t = "factor", v = as.list(as.character(x)), niveles = as.list(levels(x))))
+  if (is.factor(x)) {                       # un factor: las etiquetas, los códigos enteros y los niveles
+    etq <- as.character(x); cod <- as.integer(x)
+    out <- list(t = "factor", v = as.list(ifelse(is.na(etq), "NA", etq)), k = as.list(ifelse(is.na(cod), "NA", as.character(cod))),
+                niveles = as.list(levels(x)))
+    if (is.ordered(x)) out$ord <- TRUE
+    return(out)
+  }
   if (is.atomic(x) && is.null(dim(x))) {
     out <- list(t = class(x)[1], v = as.list(vapply(x, un_valor, "", USE.NAMES = FALSE)))
     if (!is.null(names(x))) out$n <- as.list(names(x))

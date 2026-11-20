@@ -24,6 +24,9 @@ project:
         - file: capitulos/03-indices-filtros.md
         - file: capitulos/04-decidir-repetir.md
         - file: capitulos/05-funciones.md
+    - title: Parte II · Estructuras de datos
+      children:
+        - file: capitulos/06-factores.md
 site:
   template: book-theme
   options:

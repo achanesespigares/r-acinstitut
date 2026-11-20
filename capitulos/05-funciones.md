@@ -179,7 +179,7 @@ En R una función es un valor más, que se guarda con `<-` como un número. Pyth
 
 ## La grieta
 
-`calificar()` convierte las notas en palabras: `"suspendido"`, `"aprobado"` y `"sobresaliente"`. Pero prueba a ordenarlas con `sort()`. Sale `"aprobado" "sobresaliente" "suspendido"`, por orden alfabético, cuando lo natural es de peor a mejor. Para R son textos sueltos, sin orden ni lista cerrada de valores posibles. Hace falta un tipo de dato para las categorías: los **factores**, con los que empieza la parte II.
+`calificar()` convierte las notas en palabras: `"suspendido"`, `"aprobado"` y `"sobresaliente"`. Pero prueba a ordenarlas con `sort()`. Sale `"aprobado" "sobresaliente" "suspendido"`, por orden alfabético, cuando lo natural es de peor a mejor. Para R son textos sueltos, sin orden ni lista cerrada de valores posibles. Hace falta un tipo de dato para las categorías: los [**factores**](06-factores.md), con los que empieza la parte II.
 
 ## Ejercicios
 

@@ -65,6 +65,14 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
   justify-content:center; font:600 16px/1 var(--mono); background:#fff; transition:background .25s; }
 .tz .cas:first-child .v{ margin-left:0; }
 .tz .cas .idx{ font:500 11.5px/1 var(--mono); color:var(--banda); }
+.tz .cas .v{ position:relative; }
+.tz .cas .cod{ position:absolute; top:2px; left:3px; font:600 9.5px/1 var(--mono); color:var(--acento); }
+.tz .cas.na .v{ color:var(--banda); font-style:italic; }
+.tz .niveles{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font:500 12.5px/1.2 var(--mono); color:var(--sub); margin-top:2px; }
+.tz .niveles .que{ font:600 9.5px/1 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
+.tz .niveles .nv{ border:1.5px solid var(--acento); border-radius:4px; padding:3px 6px; background:#fff; }
+.tz .niveles .nv b{ color:var(--acento); margin-right:4px; }
+.tz .niveles .menor{ color:var(--acento); font-weight:700; }
 .tz .cas.cambia .v{ background:var(--suave); border-color:var(--acento); position:relative; z-index:1; }
 .tz .cas.foco .v{ border:3px solid var(--acento); background:var(--suave); position:relative; z-index:2; }
 .tz .cas.foco .idx{ color:var(--acento); font-weight:600; }
@@ -81,7 +89,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz-aviso{ border:2px solid #8A5A00; background:#FBF3E2; color:#4A3000; border-radius:8px; padding:8px 12px; font-size:14px; }
 .tz-aviso b{ font-family:var(--titulo); }
 .tz-error{ border:2px solid var(--acento); background:var(--suave); border-radius:8px; padding:8px 12px; font-size:14px; }
-.tz-consola{ background:var(--tinta); color:#EDEDED; font:400 14px/1.6 var(--mono); padding:10px 12px; min-height:2.6em; white-space:pre-wrap; margin:0; }
+.tz-consola{ background:var(--tinta); color:#EDEDED; font:400 14px/1.6 var(--mono); padding:10px 12px; min-height:2.6em; white-space:pre; overflow-x:auto; margin:0; }   /* como la consola de R: las columnas no se parten */
 .tz-tabla{ border-collapse:collapse; font:500 14px/1.2 var(--mono); width:100%; }
 .tz-tabla th{ font:600 10.5px/1.2 var(--titulo); letter-spacing:.06em; text-align:left; color:var(--banda); padding:6px 10px; border-bottom:1.5px solid var(--tinta); }
 .tz-tabla td{ padding:6px 10px; border-bottom:1px solid var(--fila); }
@@ -203,6 +211,7 @@ function dibujaTraza(el, C, D) {
     const ahora = mp ? mp.vars : p.estado, antes = mp ? (ma && ma.id === mp.id ? ma.vars : {}) : prev.estado;
     for (const n of Object.keys(ahora)) {
       const a = antes[n], b = ahora[n];
+      if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
       if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length) {
@@ -227,7 +236,8 @@ function dibujaTraza(el, C, D) {
   function casillas(v, previo, opciones = {}) {
     const cambia = i => previo && previo.v && previo.v.length === v.v.length && previo.v[i] !== v.v[i];
     return '<div class="fila-cas' + (opciones.grande ? " grande" + (v.v.some(x => String(x).length > 4) ? " largo" : "") : "") + '">' + v.v.map((x, i) =>
-      '<span class="cas' + (cambia(i) ? " cambia" : "") + (opciones.foco === i + 1 ? " foco" : "") + '"><span class="v">' + esc(x) + '</span><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + "</span></span>").join("") +
+      '<span class="cas' + (cambia(i) ? " cambia" : "") + (opciones.foco === i + 1 ? " foco" : "") + (v.k && x === "NA" ? " na" : "") + '"><span class="v">' +
+      (v.k && v.k[i] !== "NA" ? '<span class="cod">' + esc(v.k[i]) + "</span>" : "") + esc(x) + '</span><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + "</span></span>").join("") +
       (opciones.foco ? '<span class="puntero"><span class="et">' + esc(opciones.puntero) + " = " + opciones.foco + '</span><span class="flecha"></span></span>' : "") + "</div>";
   }
 
@@ -242,10 +252,12 @@ function dibujaTraza(el, C, D) {
       const v = est[n], a = ant && ant[n];
       const cambio = !a || !igual(a, v);
       html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + '</span><span class="tipo">' + esc(v.t) + "</span>" +
-        (v.v ? '<span class="lon">longitud ' + v.v.length + "</span>" : "") + "</div>";
+        (v.v ? '<span class="lon">longitud ' + v.v.length + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") + "</span>" : "") + "</div>";
       if (v.v) {
         const foco = conFoco && n === C.foco && C.puntero && est[C.puntero] && est[C.puntero].v ? Number(est[C.puntero].v[0]) : null;
         html += casillas(v, a, { grande: conFoco && n === C.foco, foco: foco >= 1 && foco <= v.v.length ? foco : null, puntero: C.puntero });
+        if (v.niveles) html += '<div class="niveles"><span class="que">niveles</span>' +
+          v.niveles.map((l, j) => '<span class="nv"><b>' + (j + 1) + "</b>" + esc(l) + "</span>").join(v.ord ? '<span class="menor">&lt;</span>' : "") + "</div>";
       } else if (v.r) html += '<div class="otro">' + esc(v.r) + "</div>";
       else html += '<div class="otro">' + esc(v.t) + "</div>";
       html += "</div>";
