@@ -48,6 +48,9 @@ project:
         - file: capitulos/21-objetos.md
         - file: capitulos/22-metaprogramacion.md
         - file: capitulos/23-rendimiento.md
+    - title: Parte V · Trabajar como profesional
+      children:
+        - file: capitulos/24-errores-pruebas.md
 site:
   template: book-theme
   options:

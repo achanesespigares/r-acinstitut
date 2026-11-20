@@ -150,6 +150,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz-cond .res.si{ background:var(--si); } .tz-cond .res.no{ background:var(--acento); }
 .tz-aviso{ border:2px solid #8A5A00; background:#FBF3E2; color:#4A3000; border-radius:8px; padding:8px 12px; font-size:14px; }
 .tz-aviso b{ font-family:var(--titulo); }
+.tz-aviso .origen, .tz-error .origen{ font-family:var(--mono, ui-monospace, monospace); font-size:12.5px; opacity:.8; }
 .tz-error{ border:2px solid var(--acento); background:var(--suave); border-radius:8px; padding:8px 12px; font-size:14px; }
 .tz-consola{ background:var(--tinta); color:#EDEDED; font:400 14px/1.6 var(--mono); padding:10px 12px; min-height:2.6em; white-space:pre; overflow-x:auto; margin:0; }   /* como la consola de R: las columnas no se parten */
 .tz-tabla{ border-collapse:collapse; font:500 14px/1.2 var(--mono); width:100%; }
@@ -268,6 +269,13 @@ function dibujaTraza(el, C, D) {
   const muestra = v => !v ? "" : v.clase ? "un objeto de clase " + v.clase[0] : v.el ? "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos") : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t === "function" && v.r ? v.r : v.t;
   const varDelFor = l => ((L[l - 1] || "").match(/for\s*\(\s*([\w.]+)\s+in\s+(.+)\)\s*\{?\s*$/) || []);
 
+  const MANEJADORES = { error: 1, warning: 1, message: 1, condition: 1, interrupt: 1 };
+  // ¿es la función de un manejador de tryCatch()? (error = function(e) ..., nota_invalida = \(e) ...)
+  function esManejador(nombre, desde, hasta) {
+    if (!desde || !hasta || desde > hasta) return false;
+    const txt = L.slice(desde - 1, Math.max(hasta, desde + 15)).join(" ");
+    return /tryCatch\(/.test(txt) && new RegExp("(^|[\\s,(])" + nombre.replace(/[.]/g, "\\.") + "\\s*=\\s*(function|\\\\)").test(txt);
+  }
   function narra(p, prev) {
     if (p.tipo === "inicio") return "El programa está listo. Pulsa «Paso ▶» para ejecutar la primera línea.";
     if (p.tipo === "error") return "R se detiene en la línea " + p.linea + " con un error" + (p.marcos && p.marcos.length ? ", dentro de " + code(p.marcos[p.marcos.length - 1].llamada) : "") + ". Lo que viene detrás ya no se ejecuta.";
@@ -296,6 +304,24 @@ function dibujaTraza(el, C, D) {
       const hace = queHaceCapa(p.texto);
       return "Capa " + p.etapa + " de " + p.total + ": se suma " + code(p.texto) + (hace ? ", que " + hace : "") + "." + (p.etapa === p.total ? " El gráfico está completo." : "");
     }
+    if (p.tipo === "senal") {
+      const M = p.marcos || [], dentro = M.length ? ", dentro de " + code(M[M.length - 1].llamada) : "";
+      const propia = (p.clases || []).filter(c => !["simpleError", "simpleWarning", "error", "warning", "condition", "rlang_error", "rlang_warning"].includes(c));
+      const clase = propia.length ? " de clase " + code(propia[0]) : "";
+      return p.clase === "error"
+        ? "Salta un <b>error</b>" + clase + dentro + ": «" + esc(p.mensaje) + "». R deja de ejecutar todo lo que venía detrás y busca quién lo atrape, de dentro afuera: un " + code("tryCatch()") + " o un " + code("try()") + " que esté esperando. Si nadie lo atrapa, el programa se detiene aquí."
+        : "Salta un <b>aviso</b>" + clase + dentro + ": «" + esc(p.mensaje) + "». Un aviso no detiene nada por sí solo: si nadie lo atrapa, el cálculo sigue y R lo enseña en la consola. Pero aquí hay un " + code("tryCatch()") + " esperando un aviso.";
+    }
+    if (p.tipo === "llamada" && prev && prev.tipo === "senal" && (MANEJADORES[p.marcos[p.marcos.length - 1].nombre] || (prev.clases || []).includes(p.marcos[p.marcos.length - 1].nombre))) {
+      const m = p.marcos[p.marcos.length - 1], arg = Object.keys(m.vars)[0], que = prev.clase === "error" ? "el error" : "el aviso";
+      const llamante = (prev.marcos || []).filter(x => !(p.marcos || []).some(y => y.id === x.id));
+      const enCalling = /withCallingHandlers\(/.test(L.slice(Math.max(0, p.linea - 8), p.linea).join(" ")) && !/tryCatch\(/.test(L.slice(Math.max(0, p.linea - 8), p.linea).join(" "));
+      if (enCalling) return code("withCallingHandlers()") + " ve pasar " + que + " y llama al manejador que va en " + code(m.nombre + " =") + (arg ? ", que lo recibe en " + code(arg) : "") + ". Este manejador no deshace nada: cuando termine, " + que + " sigue su camino.";
+      return code("tryCatch()") + " atrapa " + que + ". " + (llamante.length
+        ? "Antes de nada, R deshace las llamadas que se habían quedado a medias (" + llamante.map(x => code(x.llamada)).join(", ") + ": su espacio en la memoria desaparece)"
+        : "La expresión que se estaba ejecutando se queda sin terminar") +
+        "; después llama al manejador que va en " + code(m.nombre + " =") + (arg ? ", que recibe " + que + " en su argumento " + code(arg) + ", " + esc(muestra(m.vars[arg])) : "") + ". Lo que devuelva el manejador será lo que devuelva " + code("tryCatch()") + ".";
+    }
     if (p.tipo === "llamada") {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
       const gen = p.marcos.length > 1 ? p.marcos[p.marcos.length - 2].nombre : null;
@@ -319,16 +345,44 @@ function dibujaTraza(el, C, D) {
            m.pvars ? "el de " + code(m.padre) + ", la llamada donde nació la función. Esa llamada ya terminó, pero su entorno sigue vivo porque la función lo recuerda." :
            "el de " + code(m.padre) + ", la llamada donde se definió la función.") : "");
     }
+    if (p.tipo === "devuelve" && esManejador(p.funcion, p.desde, p.linea))
+      return "El manejador " + code(p.funcion) + " termina y devuelve " + code(p.valor) + ": es el valor de todo el " + code("tryCatch()") + ". El programa sigue en la línea " + p.desde + " como si nada hubiera fallado.";
+    if (p.tipo === "devuelve" && prev && p.salida.length > prev.salida.length && /finally\s*=/.test(L.slice(p.linea - 1, p.linea + 15).join(" "))) {
+      const txt = p.salida.slice(prev.salida.length).trim();
+      return "Antes de salir, el " + code("finally") + " del " + code("tryCatch()") + " escribe en la consola " + code(txt) + ": se ejecuta siempre, haya habido error o no. " +
+        code(p.funcion) + " termina y devuelve " + code(p.valor) + ", y el programa vuelve a la línea " + p.desde + ".";
+    }
     if (p.tipo === "devuelve")
       return /^function\(/.test(p.valor)
         ? (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + " termina y devuelve una función, " + code(p.valor) + ". Esta vez su espacio en la memoria no desaparece: la función que devuelve nació ahí dentro y lo recuerda, con sus variables. El programa vuelve a la línea " + p.desde + "."
         : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + (p.valor === "NULL" ? " termina sin devolver nada útil (" + code("NULL") + ")" : " termina y devuelve " + code(p.valor)) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
+    if (p.tipo === "condicion" && p.cond.valor !== "TRUE" && p.cond.valor !== "FALSE")
+      return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". Pero " +
+        (/^\s*while\b/.test(L[p.linea - 1]) ? "un <code>while</code>" : "un <code>if</code>") + " necesita " + code("TRUE") + " o " + code("FALSE") + ": con " + code(p.cond.valor) + " no sabe por dónde seguir.";
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +
         (esWhile ? (si ? "El <code>while</code> da otra vuelta." : "El <code>while</code> se detiene.") : (si ? "Se entra en el bloque del <code>if</code>." : "Se salta el bloque del <code>if</code>" + (/else/.test(L.slice(p.linea - 1).join(" ")) ? " y se va al <code>else</code>." : ".")));
     }
     const frases = [];
+    if (prev && prev.tipo === "senal" && prev.clase === "error" && /\btry\(/.test(L[p.linea - 1] || "")) {
+      const quedan = (p.marcos || []).map(x => x.id), deshechas = (prev.marcos || []).filter(x => !quedan.includes(x.id));
+      frases.push(code("try()") + " atrapa el error" + (deshechas.length ? ": R deshace " + deshechas.map(x => code(x.llamada)).join(", ") + ", que se queda a medias" : "") +
+        ", escribe el error en la consola y, en lugar de detener el programa, devuelve un objeto de clase " + code("try-error") + ".");
+    }
+    if (prev && !["devuelve", "senal", "error"].includes(prev.tipo) && p.tipo !== "devuelve") {
+      const quedan = (p.marcos || []).map(x => x.id), cortadas = (prev.marcos || []).filter(x => !quedan.includes(x.id));
+      if (cortadas.length) {
+        const expErr = L.some(l => /expect_error\(/.test(l));
+        frases.push(cortadas.map(x => code(x.llamada)).join(", ") + " no termina: dentro salta un error" +
+          (expErr ? ", y lo atrapa " + code("expect_error()") + ", que comprueba justamente que la función se pare, y con qué mensaje." : ", y lo atrapa quien esperaba fuera."));
+      }
+    }
+    if (/^warning\(/.test((L[p.linea - 1] || "").trim()) && !p.avisos && p.tipo === "linea")
+      frases.push(code("warning()") + " lanza el aviso. Esta vez no llega a la consola: lo recoge " +
+        (L.some(l => /expect_warning\(/.test(l)) ? code("expect_warning()") + ", que comprueba justamente que el aviso llegue, y con qué mensaje." : "quien ha llamado a la función."));
+    { const lt = (L[p.linea - 1] || "").trim(), m = lt.match(/^on\.exit\((.*)\)$/);
+      if (m && p.tipo === "linea") frases.push(code("on.exit()") + " apunta algo para hacer al salir de la función: " + code(m[1]) + ". Todavía no se ejecuta; se ejecutará cuando la función termine, tanto si termina bien como si sale por un error."); }
     // se comparan las variables del ámbito que se está ejecutando: la llamada en curso o el programa principal
     const marco = x => x.marcos && x.marcos.length ? x.marcos[x.marcos.length - 1] : null;
     const mp = marco(p), ma = marco(prev);
@@ -685,6 +739,8 @@ function dibujaTraza(el, C, D) {
     });
     if (p.avisos) html += '<div class="tz-aviso"><b>Aviso de R</b><br>' + p.avisos.map(esc).join("<br>") + "</div>";
     if (p.tipo === "error") html += '<div class="tz-error"><b>Error de R</b><br>' + esc(p.error) + "</div>";
+    if (p.tipo === "senal") html += '<div class="' + (p.clase === "error" ? "tz-error" : "tz-aviso") + '"><b>' + (p.clase === "error" ? "Salta un error" : "Salta un aviso") + "</b>" +
+      (p.origen ? ' <span class="origen">en ' + esc(p.origen) + "</span>" : "") + "<br>" + esc(p.mensaje) + "</div>";
     return html;
   }
 
@@ -710,7 +766,7 @@ function dibujaTraza(el, C, D) {
       const trozo = p.texto.slice(0, 14);
       for (let j = p.linea - 1; j < L.length && j < p.linea + 30; j++) if (L[j].includes(trozo)) { lineaVis = j + 1; break; }
     }
-    if (lineaVis) { const ln = el.querySelector('.ln[data-n="' + lineaVis + '"]'); ln.classList.add("hecha"); if (p.tipo === "error") ln.classList.add("error"); }
+    if (lineaVis) { const ln = el.querySelector('.ln[data-n="' + lineaVis + '"]'); ln.classList.add("hecha"); if (p.tipo === "error" || (p.tipo === "senal" && p.clase === "error")) ln.classList.add("error"); }
     q(".tz-lin").textContent = lineaVis ? "línea " + lineaVis : "";
     q(".tz-narr").innerHTML = narra(p, prev);
     q(".tz-mem").innerHTML = memoria(p, k ? prev : null);

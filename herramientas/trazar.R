@@ -201,7 +201,7 @@ instrumenta <- function(fn, nombre, linea) {
     l <- if (!is.null(refs) && length(refs) >= j) refs[[j]][1] else linea
     x <- b[[j]]
     control <- is.call(x) && as.character(x[[1]])[1] %in% c("for", "while", "if", "repeat", "<-", "=", "<<-", "{", "return", "print", "cat", "message")
-    partes[[length(partes) + 1]] <- if (j == n && !control) call("{", call(".va", l), x) else reescribe(x, l, 1)
+    partes[[length(partes) + 1]] <- if (j == n && !control) call("{", call(".va", l), anonimas(x, l)) else reescribe(x, l, 1)
   }
   fn[[3]] <- as.call(partes)
   fn
@@ -239,6 +239,8 @@ reescribe <- function(e, linea, nivel, txt = NULL) {
     # una función anónima pasada como argumento (sapply(v, \(x) ...), map(), Filter(), Reduce()...):
     # también se instrumenta, y cada llamada abre su marco, «anónima(x = ...)»
     else if (!f %in% c("for", "while", "if", "function", "{")) e <- anonimas(e, linea)
+    # on.exit() del alumno: se suma al del trazador (que cierra el marco) y va delante, para no borrarlo
+    if (f == "on.exit") { e$add <- TRUE; if (is.null(e$after)) e$after <- FALSE }
     if (f == "for") {
       e[[4]] <- call("{", call(".cabecera", linea), cuerpo(e[[4]], linea, nivel + 1), call(".fin_vuelta", linea))
       return(call("{", call(".va", linea), e, call(".fin_bucle", linea)))
@@ -272,11 +274,29 @@ reescribe <- function(e, linea, nivel, txt = NULL) {
 
 anonimas <- function(e, linea) {
   if (!is.call(e) || es_funcion(e)) return(e)
+  if (identical(e[[1]], as.name("quote"))) return(e)   # el código citado no se toca
+  e <- vigila(e)
   for (j in seq_along(e)[-1]) {
     if (is.null(e[[j]]) || identical(e[[j]], quote(expr = ))) next   # x[, 1]: argumento vacío
     nm <- names(e)[j]                        # list(suma = function() ...): la función se llama como su argumento
     e[[j]] <- if (es_funcion(e[[j]])) instrumenta(e[[j]], if (!is.null(nm) && nzchar(nm)) nm else "anónima", linea) else anonimas(e[[j]], linea)
   }
+  e
+}
+
+# tryCatch(), try() y withCallingHandlers(): su expresión se ejecuta dentro de .vigila(), que pone un
+# manejador propio, más interior que los del alumno. Así cada error o aviso se apunta en el momento en que
+# salta (el paso «señal»), con las llamadas todavía abiertas, antes de que tryCatch() lo atrape. Si un
+# error sale directamente de la expresión, su llamada sería la de .vigila(): se cambia por la que habría
+# puesto R sin trazador (repl), para que try() y print(e) escriban lo mismo que en una sesión normal.
+vigila <- function(e) {
+  f <- as.character(e[[1]])[1]
+  if (!f %in% c("tryCatch", "withCallingHandlers", "try") || length(e) < 2) return(e)
+  nm <- names(e); j <- if (!is.null(nm) && "expr" %in% nm) which(nm == "expr")[1] else
+    which(if (is.null(nm)) rep(TRUE, length(e)) else !nzchar(nm))[-1][1]
+  if (is.na(j) || is.null(e[[j]])) return(e)
+  repl <- if (f == "tryCatch") quote(doTryCatch(return(expr), name, parentenv, handler)) else e
+  e[[j]] <- call(".vigila", e[[j]], call("quote", repl))
   e
 }
 
@@ -295,6 +315,7 @@ cuerpo <- function(b, linea, nivel) {
 traza <- function(codigo, config) {
   pasos <- list(); filas <- list(); avisos <- character(0)
   REFERENCIAS$vistos <- list()
+  set.seed(1)                                # lo que el programa sortee sin semilla propia sale igual en cada generación
   vueltas <- list(); actual <- NA_integer_
   ocultar <- unlist(config$ocultar)
   columnas <- unlist(config$columnas)
@@ -323,6 +344,8 @@ traza <- function(codigo, config) {
   # Las promesas que no se pudieron evaluar (por ejemplo, una condición sobre columnas): no se vuelven a
   # intentar, porque R avisaría «restarting interrupted promise evaluation» y, además, no es asunto nuestro
   fallidas <- list()
+  senales <- list()                          # los errores y avisos ya contados con su paso «señal»
+  callando <- 0                              # > 0 mientras el trazador hace sus fotos: sus avisos no cuentan
   como_promesa <- function(n, donde) {
     ex <- tryCatch(eval(call("substitute", as.name(n)), donde), error = function(e2) NULL)
     if (!is.null(ex) && !identical(ex, as.name(n)))
@@ -370,6 +393,7 @@ traza <- function(codigo, config) {
     out
   })
   anota <- function(paso) {
+    callando <<- callando + 1; on.exit(callando <<- callando - 1)
     if (length(pasos) >= LIMITE && paso$tipo != "error") stop("el programa da demasiados pasos (más de ", LIMITE, ")")
     paso$estado <- foto()
     if (length(pila)) paso$marcos <- foto_marcos()
@@ -510,11 +534,36 @@ traza <- function(codigo, config) {
     pila[[length(pila)]] <<- NULL
     actual <<- m$desde
   }
+  ayudas$.vigila <- function(expr, repl) withCallingHandlers(expr,
+    error = function(cnd) ayudas$.senal(cnd, repl), warning = function(cnd) ayudas$.senal(cnd, NULL))
+  ayudas$.senal <- function(cnd, repl) {
+    if (callando > 0) return(invisible())
+    for (s in senales) if (identical(s, cnd)) return(invisible())
+    senales[[length(senales) + 1]] <<- cnd
+    llamada <- conditionCall(cnd)
+    propia <- !is.null(llamada) && any(all.names(llamada) %in% c(".vigila", ".senal", "ayudas"))
+    # una llamada que lleva dentro las marcas del trazador (.cond, .va...) no se enseña: no es la del alumno
+    maquina <- propia || (!is.null(llamada) && any(all.names(llamada) %in% ls(ayudas, all.names = TRUE)))
+    anota(list(linea = actual, tipo = "senal", clase = if (inherits(cnd, "error")) "error" else "aviso",
+               mensaje = conditionMessage(cnd), clases = as.list(class(cnd)),
+               origen = if (is.null(llamada) || maquina) "" else paste(deparse(llamada, width.cutoff = 500L), collapse = " ")))
+    if (propia && inherits(cnd, "error") && !is.null(repl)) {
+      cnd$call <- repl
+      senales[[length(senales) + 1]] <<- cnd
+      stop(cnd)
+    }
+  }
+  # lo que decide un if: TRUE o FALSE, también si la condición es un número (if (3) entra); si no se puede
+  # decidir (NA, un texto, un vector de varios), su valor tal cual, y R dará un error
+  como_si <- function(r) {
+    v <- if (length(r) == 1) suppressWarnings(tryCatch(as.logical(r), error = function(e) NA)) else NA
+    if (isTRUE(v)) "TRUE" else if (isFALSE(v)) "FALSE" else corto(r)
+  }
   ayudas$.cond <- function(l, c, texto) {
     con_valores <- sustituye(str2lang(texto), aqui())
     r <- c
     anota(list(linea = l, tipo = "condicion", cond = list(texto = texto, valores = con_valores,
-                                                          valor = if (isTRUE(r)) "TRUE" else "FALSE")))
+                                                          valor = como_si(r))))
     r
   }
 
@@ -522,15 +571,22 @@ traza <- function(codigo, config) {
   refs <- attr(exprs, "srcref")
   pasos[[1]] <- list(linea = NULL, tipo = "inicio", estado = setNames(list(), character(0)), salida = "", nfilas = 0)
   sink(pantalla)
+  op_try <- options(try.outFile = pantalla)  # try() escribe su error en la consola que se captura
+  on.exit(options(op_try), add = TRUE)
   momento <- NULL                            # dónde estaba el programa al saltar el último error
   error <- tryCatch({
     withCallingHandlers({
       for (j in seq_along(exprs)) eval(reescribe(exprs[[j]], refs[[j]][1], 0, paste(as.character(refs[[j]]), collapse = "\n")), env)
       NULL
     }, warning = function(w) {
-      avisos <<- c(avisos, conditionMessage(w))
+      if (!any(vapply(senales, identical, NA, w))) avisos <<- c(avisos, conditionMessage(w))
       invokeRestart("muffleWarning")
+    }, message = function(m) {
+      # los mensajes de message() van a la consola, como en R; los de carga de paquetes, no
+      if (!inherits(m, "packageStartupMessage")) cat(conditionMessage(m))
+      invokeRestart("muffleMessage")
     }, error = function(err) {
+      callando <<- callando + 1; on.exit(callando <<- callando - 1)
       # se ejecuta antes de deshacer las llamadas: así el error se ve dentro de la función, con su marco
       momento <<- list(linea = actual, estado = foto(), marcos = if (length(pila)) foto_marcos())
     })

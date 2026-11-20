@@ -223,7 +223,7 @@ R y Python son lenguajes **interpretados**: un bucle se ejecuta paso a paso, y l
 
 ## La grieta
 
-Con este capítulo se cierra la parte IV, R por dentro: entornos, funciones, objetos, código y velocidad. Pero hasta ahora los programas los hemos escrito para nosotros, y casi siempre han funcionado a la primera. En el mundo real, los programas los usa otra gente, reciben datos que no esperábamos y fallan. Una función que divide entre cero, una tabla sin la columna que se esperaba, un archivo que no existe. ¿Cómo se escribe un programa que, cuando algo va mal, avise con claridad en lugar de fallar en silencio, o de seguir adelante con un resultado equivocado? ¿Y cómo se comprueba que una función hace lo que debe, hoy y después de cambiarla? Son los **errores y las pruebas**, el primer paso para trabajar como profesional.
+Con este capítulo se cierra la parte IV, R por dentro: entornos, funciones, objetos, código y velocidad. Pero hasta ahora los programas los hemos escrito para nosotros, y casi siempre han funcionado a la primera. En el mundo real, los programas los usa otra gente, reciben datos que no esperábamos y fallan. Una función que divide entre cero, una tabla sin la columna que se esperaba, un archivo que no existe. ¿Cómo se escribe un programa que, cuando algo va mal, avise con claridad en lugar de fallar en silencio, o de seguir adelante con un resultado equivocado? ¿Y cómo se comprueba que una función hace lo que debe, hoy y después de cambiarla? Son los [**errores y las pruebas**](24-errores-pruebas.md), el primer paso para trabajar como profesional.
 
 ## Ejercicios
 
