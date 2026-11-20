@@ -255,7 +255,7 @@ Los tres tienen alcance léxico y clausuras. Para cambiar una variable de fuera,
 
 ## La grieta
 
-En este capítulo, las funciones se han comportado como cualquier otro valor: se guardan en variables (`cuadrado <- potencia(2)`), se devuelven desde otras funciones y se pasan como argumentos (`sapply(c(40, 45, 50.15, 55, 60), sc)` en el capítulo 18). Si una función es un valor como un número, ¿se puede hacer con ellas lo que se hace con los números? ¿Guardar varias en una lista, aplicar una a cada elemento de otra lista, combinarlas para formar funciones nuevas? Escribir programas a base de funciones que reciben y devuelven funciones es la **programación funcional**.
+En este capítulo, las funciones se han comportado como cualquier otro valor: se guardan en variables (`cuadrado <- potencia(2)`), se devuelven desde otras funciones y se pasan como argumentos (`sapply(c(40, 45, 50.15, 55, 60), sc)` en el capítulo 18). Si una función es un valor como un número, ¿se puede hacer con ellas lo que se hace con los números? ¿Guardar varias en una lista, aplicar una a cada elemento de otra lista, combinarlas para formar funciones nuevas? Escribir programas a base de funciones que reciben y devuelven funciones es la [**programación funcional**](20-programacion-funcional.md).
 
 ## Ejercicios
 

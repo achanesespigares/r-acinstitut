@@ -254,7 +254,7 @@ function dibujaTraza(el, C, D) {
   const vec = (p, n) => p.estado[n];
   const longitud = v => v && v.v ? (v.nv || v.v.length) : 0;
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const muestra = v => !v ? "" : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t;
+  const muestra = v => !v ? "" : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t === "function" && v.r ? v.r : v.t;
   const varDelFor = l => ((L[l - 1] || "").match(/for\s*\(\s*([\w.]+)\s+in\s+(.+)\)\s*\{?\s*$/) || []);
 
   function narra(p, prev) {
@@ -287,7 +287,7 @@ function dibujaTraza(el, C, D) {
     }
     if (p.tipo === "llamada") {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
-      return "Se llama a " + code(m.llamada) + ". R le da a la función un espacio propio en la memoria" +
+      return (m.nombre === "anónima" ? "Se llama a la función anónima de la línea " + p.linea : "Se llama a " + code(m.llamada)) + ". R le da a la función un espacio propio en la memoria" +
         (args.length ? ", con sus argumentos: " + args.map(a => code(a) + " vale " + esc(muestra(m.vars[a]))).join(", ") : "") +
         ". El programa salta a la función" + (m.desde ? " y la línea " + m.desde + " se queda esperando el resultado." : ".") +
         (m.padre ? " Si la función usa un nombre que no está en su espacio, R lo busca en su entorno padre: " +
@@ -297,8 +297,8 @@ function dibujaTraza(el, C, D) {
     }
     if (p.tipo === "devuelve")
       return /^function\(/.test(p.valor)
-        ? code(p.funcion) + " termina y devuelve una función, " + code(p.valor) + ". Esta vez su espacio en la memoria no desaparece: la función que devuelve nació ahí dentro y lo recuerda, con sus variables. El programa vuelve a la línea " + p.desde + "."
-        : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + code(p.funcion) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
+        ? (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + " termina y devuelve una función, " + code(p.valor) + ". Esta vez su espacio en la memoria no desaparece: la función que devuelve nació ahí dentro y lo recuerda, con sus variables. El programa vuelve a la línea " + p.desde + "."
+        : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +

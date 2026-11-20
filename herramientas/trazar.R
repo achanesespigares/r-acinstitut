@@ -39,7 +39,7 @@ un_valor <- function(e) {
 }
 
 describe <- function(x, prof = 0) {
-  if (is.function(x)) return(list(t = "function", r = paste0("function(", paste(names(formals(x)), collapse = ", "), ")")))
+  if (is.function(x)) return(list(t = "function", r = firma(x)))
   if (inherits(x, "ggplot")) return(list(t = "ggplot"))   # un gráfico: se dibuja aparte, como imagen
   if (is.data.frame(x) && ncol(x) <= 15) {
     # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las
@@ -96,8 +96,14 @@ describe <- function(x, prof = 0) {
   list(t = class(x)[1], r = paste(utils::capture.output(print(x)), collapse = "\n"))
 }
 
+# La firma de una función: function(x, ...). Las primitivas (max, round) no tienen formals; args() sí
+firma <- function(f) paste0("function(", paste(names(formals(if (is.primitive(f)) args(f) else f)), collapse = ", "), ")")
+
 corto <- function(x) {                       # para la tabla de traza
-  if (is.function(x)) return(paste0("function(", paste(names(formals(x)), collapse = ", "), ")"))
+  if (is.function(x)) return(firma(x))
+  # un vector largo, abreviado: sus tres primeros valores y cuántos tiene
+  if (is.atomic(x) && is.null(dim(x)) && length(x) > 12)
+    return(paste0(paste(vapply(x[1:3], un_valor, "", USE.NAMES = FALSE), collapse = " "), " … (", length(x), " valores)"))
   if (is.atomic(x) && is.null(dim(x)) && length(x) <= 12) {
     v <- vapply(x, un_valor, "", USE.NAMES = FALSE)
     return(if (length(v) == 1) v else paste(v, collapse = " "))
@@ -180,6 +186,9 @@ reescribe <- function(e, linea, nivel, txt = NULL) {
     f <- as.character(e[[1]])[1]
     if (f %in% c("<-", "=") && length(e) == 3 && is.symbol(e[[2]]) && es_funcion(e[[3]]))
       e[[3]] <- instrumenta(e[[3]], as.character(e[[2]]), linea)
+    # una función anónima pasada como argumento (sapply(v, \(x) ...), map(), Filter(), Reduce()...):
+    # también se instrumenta, y cada llamada abre su marco, «anónima(x = ...)»
+    else if (!f %in% c("for", "while", "if", "function", "{")) e <- anonimas(e, linea)
     if (f == "for") {
       e[[4]] <- call("{", call(".cabecera", linea), cuerpo(e[[4]], linea, nivel + 1), call(".fin_vuelta", linea))
       return(call("{", call(".va", linea), e, call(".fin_bucle", linea)))
@@ -209,6 +218,15 @@ reescribe <- function(e, linea, nivel, txt = NULL) {
   if (nivel == 0) return(call("{", call(".va", linea), call(".muestra", e), call(".paso", linea)))
   # dentro de un bloque, la sentencia conserva su valor (lo necesita la última línea de una función)
   call("{", call(".va", linea), call("<-", as.name(".valor"), e), call(".paso", linea), as.name(".valor"))
+}
+
+anonimas <- function(e, linea) {
+  if (!is.call(e) || es_funcion(e)) return(e)
+  for (j in seq_along(e)[-1]) {
+    if (is.null(e[[j]]) || identical(e[[j]], quote(expr = ))) next   # x[, 1]: argumento vacío
+    e[[j]] <- if (es_funcion(e[[j]])) instrumenta(e[[j]], "anónima", linea) else anonimas(e[[j]], linea)
+  }
+  e
 }
 
 cuerpo <- function(b, linea, nivel) {
