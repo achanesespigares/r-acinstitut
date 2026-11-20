@@ -208,7 +208,7 @@ Los tres lenguajes tienen los mismos tres patrones con casi los mismos nombres, 
 
 ## La grieta
 
-En este capítulo, `map_dbl(medidas, mean)` dio un vector con nombres, `split()` una lista de tablas, y `map()` una lista de modelos. Y cada cosa se imprime a su manera: un data frame como una tabla, un factor con sus niveles, un modelo con su fórmula y sus coeficientes. Con `summary()` pasa lo mismo: de una tabla da un resumen de cada columna; de un modelo, la tabla de coeficientes; de un factor, un recuento. Es la misma función. ¿Cómo sabe `print()` o `summary()` qué hacer con cada cosa? La respuesta está en los **objetos** y sus clases.
+En este capítulo, `map_dbl(medidas, mean)` dio un vector con nombres, `split()` una lista de tablas, y `map()` una lista de modelos. Y cada cosa se imprime a su manera: un data frame como una tabla, un factor con sus niveles, un modelo con su fórmula y sus coeficientes. Con `summary()` pasa lo mismo: de una tabla da un resumen de cada columna; de un modelo, la tabla de coeficientes; de un factor, un recuento. Es la misma función. ¿Cómo sabe `print()` o `summary()` qué hacer con cada cosa? La respuesta está en los [**objetos**](21-objetos.md) y sus clases.
 
 ## Ejercicios
 

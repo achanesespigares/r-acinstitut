@@ -38,8 +38,30 @@ un_valor <- function(e) {
   format(e, digits = 7)
 }
 
+# Clases de paquetes que se describen a su manera (o impresas); cualquier otra clase es «propia» del programa
+CLASES_CONOCIDAS <- c("data.frame", "factor", "Date", "POSIXt", "difftime", "lm", "glm", "htest", "ggplot", "table",
+                      "formula", "noquote", "numeric_version", "summaryDefault")
+
+# Objetos de referencia (R6): cada uno recibe un número la primera vez que se ve, para que se note
+# cuándo dos nombres apuntan al mismo objeto. traza() vacía la lista al empezar.
+REFERENCIAS <- new.env(); REFERENCIAS$vistos <- list()
+num_referencia <- function(x) {
+  for (k in seq_along(REFERENCIAS$vistos)) if (identical(REFERENCIAS$vistos[[k]], x)) return(k)
+  REFERENCIAS$vistos[[length(REFERENCIAS$vistos) + 1]] <- x
+  length(REFERENCIAS$vistos)
+}
+
 describe <- function(x, prof = 0) {
   if (is.function(x)) return(list(t = "function", r = firma(x)))
+  if (inherits(x, "R6ClassGenerator"))       # el molde de una clase R6: su nombre, sus campos y sus métodos
+    return(list(t = "R6ClassGenerator", r = paste0("clase ", x$classname,
+      "\ncampos: ", paste(names(x$public_fields), collapse = ", "),
+      "\nmétodos: ", paste(paste0(names(x$public_methods), "()"), collapse = ", "))))
+  if (inherits(x, "R6")) {                   # un objeto R6: sus campos (no sus métodos) y su número de objeto
+    campos <- Filter(function(n) !is.function(get(n, envir = x)) && !startsWith(n, "."), sort(ls(x)))
+    el <- lapply(campos, function(n) list(nombre = n, v = describe(get(n, envir = x), prof + 1)))
+    return(list(t = "R6", el = el, clase = as.list(setdiff(class(x), "R6")), ref = num_referencia(x)))
+  }
   if (inherits(x, "ggplot")) return(list(t = "ggplot"))   # un gráfico: se dibuja aparte, como imagen
   if (is.data.frame(x) && ncol(x) <= 15) {
     # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las
@@ -53,7 +75,8 @@ describe <- function(x, prof = 0) {
     if (inherits(x, "grouped_df") && is.data.frame(g)) { out$grupos <- as.list(setdiff(names(g), ".rows")); out$ngrupos <- nrow(g) }
     return(out)
   }
-  if (is.list(x) && !is.data.frame(x) && is.null(attr(x, "class", exact = TRUE)) && prof < 4 && length(x) <= 30) {
+  propia <- !is.null(attr(x, "class", exact = TRUE)) && !inherits(x, CLASES_CONOCIDAS)   # una clase S3 del programa
+  if (is.list(x) && !is.data.frame(x) && (is.null(attr(x, "class", exact = TRUE)) || propia) && prof < 4 && length(x) <= 30) {
     # una lista: cada elemento con su nombre (o su posición) y su valor, que puede ser otra lista
     nom <- names(x)
     el <- lapply(seq_along(x), function(i) {
@@ -61,7 +84,9 @@ describe <- function(x, prof = 0) {
       if (!is.null(nom) && !is.na(nom[i]) && nzchar(nom[i])) e$nombre <- nom[i]
       e
     })
-    return(list(t = "list", el = el))
+    out <- list(t = "list", el = el)
+    if (propia) out$clase <- as.list(class(x))
+    return(out)
   }
   if (inherits(x, "Date")) {                 # una fecha: el día, y por dentro los días desde el 1-1-1970
     num <- as.numeric(x)
@@ -78,8 +103,9 @@ describe <- function(x, prof = 0) {
   }
   if (is.atomic(x) && is.null(dim(x))) {
     # un vector largo (más de 30 elementos): solo los 20 primeros, y nv con la longitud total
-    n <- length(x); xs <- if (n > 30) x[seq_len(20)] else x
-    out <- list(t = class(x)[1], v = as.list(vapply(xs, un_valor, "", USE.NAMES = FALSE)))
+    n <- length(x); xs <- if (n > 30) unclass(x)[seq_len(20)] else unclass(x)
+    out <- list(t = if (propia) typeof(x) else class(x)[1], v = as.list(vapply(xs, un_valor, "", USE.NAMES = FALSE)))
+    if (propia) out$clase <- as.list(class(x))
     if (!is.null(names(x))) out$n <- as.list(names(xs))
     if (n > 30) out$nv <- n
     return(out)
@@ -100,7 +126,10 @@ describe <- function(x, prof = 0) {
 firma <- function(f) paste0("function(", paste(names(formals(if (is.primitive(f)) args(f) else f)), collapse = ", "), ")")
 
 corto <- function(x) {                       # para la tabla de traza
+  if (is.null(x)) return("NULL")
   if (is.function(x)) return(firma(x))
+  if (is.data.frame(x)) return(paste0("una tabla de ", nrow(x), " filas"))
+  if (!is.null(attr(x, "class", exact = TRUE)) && !inherits(x, CLASES_CONOCIDAS)) return(paste0("un objeto de clase ", class(x)[1]))
   # un vector largo, abreviado: sus tres primeros valores y cuántos tiene
   if (is.atomic(x) && is.null(dim(x)) && length(x) > 12)
     return(paste0(paste(vapply(x[1:3], un_valor, "", USE.NAMES = FALSE), collapse = " "), " … (", length(x), " valores)"))
@@ -224,7 +253,8 @@ anonimas <- function(e, linea) {
   if (!is.call(e) || es_funcion(e)) return(e)
   for (j in seq_along(e)[-1]) {
     if (is.null(e[[j]]) || identical(e[[j]], quote(expr = ))) next   # x[, 1]: argumento vacío
-    e[[j]] <- if (es_funcion(e[[j]])) instrumenta(e[[j]], "anónima", linea) else anonimas(e[[j]], linea)
+    nm <- names(e)[j]                        # list(suma = function() ...): la función se llama como su argumento
+    e[[j]] <- if (es_funcion(e[[j]])) instrumenta(e[[j]], if (!is.null(nm) && nzchar(nm)) nm else "anónima", linea) else anonimas(e[[j]], linea)
   }
   e
 }
@@ -243,6 +273,7 @@ cuerpo <- function(b, linea, nivel) {
 # ── Ejecutar y fotografiar ───────────────────────────────────────────────
 traza <- function(codigo, config) {
   pasos <- list(); filas <- list(); avisos <- character(0)
+  REFERENCIAS$vistos <- list()
   vueltas <- list(); actual <- NA_integer_
   ocultar <- unlist(config$ocultar)
   columnas <- unlist(config$columnas)
@@ -263,6 +294,8 @@ traza <- function(codigo, config) {
   nombre_entorno <- function(e) {
     if (identical(e, env)) return("Programa principal")
     for (r in entornos) if (identical(e, r$env)) return(r$llamada)
+    if (exists("self", envir = e, inherits = FALSE) && inherits(get("self", envir = e), "R6"))   # el método de un objeto R6
+      return(paste0("objeto nº ", num_referencia(get("self", envir = e))))
     nm <- environmentName(e)
     if (nzchar(nm)) nm else "otro entorno"
   }
@@ -351,7 +384,10 @@ traza <- function(codigo, config) {
     v <- withVisible(eval(ex, env))
     if (v$visible) {
       if (inherits(v$value, "ggplot")) { g <- v$value; img_pendiente <<- imagen(function() print(g)) }
-      else print(v$value)
+      else {                                  # print() se llama desde el entorno del programa: así encuentra sus métodos S3
+        caja <- new.env(parent = env); assign(".v", v$value, envir = caja)
+        eval(quote(print(.v)), caja)
+      }
     }
     invisible()
   }
@@ -414,7 +450,7 @@ traza <- function(codigo, config) {
   }
   ayudas$.entra <- function(nombre, l) {
     marco <- parent.frame()
-    args <- names(formals(sys.function(sys.parent())))
+    args <- setdiff(names(formals(sys.function(sys.parent()))), "...")
     vals <- vapply(args, function(a) tryCatch(corto(get(a, envir = marco)), error = function(err) "?"), "")
     nmarcos <<- nmarcos + 1
     llamada <- paste0(nombre, "(", paste(if (length(args)) paste(args, "=", vals) else character(0), collapse = ", "), ")")

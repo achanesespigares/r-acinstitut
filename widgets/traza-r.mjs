@@ -47,6 +47,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .marco-padre b{ font:600 12px/1.35 var(--mono); color:var(--tinta); }
 .tz .cierre{ border:1.5px dashed var(--filete); padding:6px 8px 8px; display:flex; flex-direction:column; gap:8px; }
 .tz .cierre .que{ font:600 9.5px/1.3 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
+.tz span.tipo.clase{ background:var(--acento); color:#fff; border-color:var(--acento); text-transform:none; letter-spacing:0; font-family:var(--mono); }
 .tz .cierre .que b{ font:600 11.5px/1.3 var(--mono); letter-spacing:0; text-transform:none; color:var(--tinta); }
 .tz .otro .ent{ display:block; margin-top:4px; font:italic 500 12px/1.3 var(--texto); color:var(--banda); }
 .tz .devuelve{ align-self:flex-start; font:600 13.5px/1 var(--mono); color:#fff; background:var(--acento); border-radius:5px; padding:6px 9px; }
@@ -234,6 +235,7 @@ function dibujaTraza(el, C, D) {
     lm: "un modelo lineal (" + code("lm") + "). Por dentro es una lista con los coeficientes, los valores ajustados, los residuos y más; al imprimirlo, R enseña la fórmula y los coeficientes",
     htest: "el resultado de una prueba estadística (" + code("htest") + "), con su valor p y su intervalo de confianza",
     table: "una tabla de frecuencias (" + code("table") + ")",
+    R6ClassGenerator: "el generador de una clase R6: el molde. Cada llamada a su " + code("$new()") + " fabrica un objeto nuevo",
     function: "una función: guarda sus instrucciones, que no se ejecutan hasta que alguien la llame",
   };
   // Dentro de una llamada, ¿qué nombres de la línea no están en el marco y R encuentra más arriba?
@@ -254,7 +256,7 @@ function dibujaTraza(el, C, D) {
   const vec = (p, n) => p.estado[n];
   const longitud = v => v && v.v ? (v.nv || v.v.length) : 0;
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const muestra = v => !v ? "" : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t === "function" && v.r ? v.r : v.t;
+  const muestra = v => !v ? "" : v.clase ? "un objeto de clase " + v.clase[0] : v.el ? "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos") : v.v ? (v.v.length === 1 ? v.v[0] : "c(" + v.v.join(", ") + (v.nv ? ", …" : "") + ")") : v.t === "function" && v.r ? v.r : v.t;
   const varDelFor = l => ((L[l - 1] || "").match(/for\s*\(\s*([\w.]+)\s+in\s+(.+)\)\s*\{?\s*$/) || []);
 
   function narra(p, prev) {
@@ -287,18 +289,31 @@ function dibujaTraza(el, C, D) {
     }
     if (p.tipo === "llamada") {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
-      return (m.nombre === "anónima" ? "Se llama a la función anónima de la línea " + p.linea : "Se llama a " + code(m.llamada)) + ". R le da a la función un espacio propio en la memoria" +
+      const gen = p.marcos.length > 1 ? p.marcos[p.marcos.length - 2].nombre : null;
+      const pref = gen && gen.includes(".") ? gen.slice(0, gen.indexOf(".") + 1) : null;
+      const siguiente = pref && m.nombre !== gen && m.nombre.startsWith(pref) && /NextMethod/.test(L[(m.desde || p.linea) - 1] || "")
+        ? code("NextMethod()") + " pasa el trabajo al método de la clase siguiente del objeto, " + code(m.nombre + "()") + ", con el mismo argumento. " : "";
+      const despacho = siguiente ? siguiente : gen && m.nombre.startsWith(gen + ".") ? code(gen + "()") + " es una función genérica: mira la clase de su argumento y le pasa el trabajo al método de esa clase, " + code(m.nombre + "()") +
+          (m.nombre.endsWith(".default") ? ", el método por defecto, porque no hay ninguno para esa clase. " : ". ")
+        : /^(print|format|summary|toString|mean|plot|length|as\.character)\.[\w.]+$/.test(m.nombre) && !gen ? (() => {
+            const g = m.nombre.replace(/\.[^.]+$/, ""), cls = m.nombre.slice(g.length + 1);
+            return new RegExp("\\b" + g.replace(".", "\\.") + "\\(").test(L[(m.desde || p.linea) - 1] || "")
+              ? code(g + "()") + " es una función genérica de R: mira la clase del objeto, " + code(cls) + ", y le pasa el trabajo a su método, " + code(m.nombre + "()") + ". "
+              : "Para mostrar el objeto, R llama a " + code(g + "()") + ", que mira su clase, " + code(cls) + ", y encuentra un método propio, " + code(m.nombre + "()") + ". ";
+          })() : "";
+      return despacho + (m.nombre === "anónima" ? "Se llama a la función anónima de la línea " + p.linea : "Se llama a " + code(m.llamada)) + ". R le da a la función un espacio propio en la memoria" +
         (args.length ? ", con sus argumentos: " + args.map(a => code(a) + " vale " + esc(muestra(m.vars[a]))).join(", ") : "") +
         ". El programa salta a la función" + (m.desde ? " y la línea " + m.desde + " se queda esperando el resultado." : ".") +
         (m.padre ? " Si la función usa un nombre que no está en su espacio, R lo busca en su entorno padre: " +
           (m.padre === "Programa principal" ? "el programa principal, donde se definió la función." :
+           /^objeto nº/.test(m.padre) ? "el del " + m.padre + ", el objeto al que pertenece este método. Allí está " + code("self") + ", el propio objeto: con " + code("self$") + " el método lee y cambia sus campos." :
            m.pvars ? "el de " + code(m.padre) + ", la llamada donde nació la función. Esa llamada ya terminó, pero su entorno sigue vivo porque la función lo recuerda." :
            "el de " + code(m.padre) + ", la llamada donde se definió la función.") : "");
     }
     if (p.tipo === "devuelve")
       return /^function\(/.test(p.valor)
         ? (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + " termina y devuelve una función, " + code(p.valor) + ". Esta vez su espacio en la memoria no desaparece: la función que devuelve nació ahí dentro y lo recuerda, con sus variables. El programa vuelve a la línea " + p.desde + "."
-        : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
+        : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + (p.funcion === "anónima" ? "La función anónima" : code(p.funcion)) + (p.valor === "NULL" ? " termina sin devolver nada útil (" + code("NULL") + ")" : " termina y devuelve " + code(p.valor)) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +
@@ -343,6 +358,18 @@ function dibujaTraza(el, C, D) {
         else if (camb.length) frases.push("Cambian " + camb.length + " casillas de " + code(n) + ".");
         continue;
       }
+      if (b.ref && !a) {                        // un objeto R6: no se copia
+        const otro = Object.keys(ahora).find(k => k !== n && ahora[k].ref === b.ref && antes[k]) ||
+          (mp ? Object.keys(p.estado).find(k => p.estado[k].ref === b.ref) : null);
+        frases.push(otro ? "Se crea " + code(n) + ", pero no es una copia: apunta al mismo objeto nº " + b.ref + " que " + code(otro) + ". Lo que le pase a uno, lo verá el otro."
+          : "Se crea " + code(n) + ", un objeto R6 de clase " + code(b.clase[0]) + ", el objeto nº " + b.ref + ". A diferencia de una lista, no se copia nunca: quien lo tenga, tiene el mismo objeto.");
+        continue;
+      }
+      if (!a && b.el && b.clase) {
+        const noms = b.el.map((e, i) => e.nombre ? code("$" + e.nombre) : code("[[" + (i + 1) + "]]"));
+        frases.push("Se crea " + code(n) + ", un objeto de clase " + b.clase.map(code).join(" y ") + ". Por dentro es una lista con " + noms.join(", ").replace(/, ([^,]*)$/, " y $1") + ", con la etiqueta de su clase encima.");
+        continue;
+      }
       if (!a && b.el) {
         const noms = b.el.map((e, i) => e.nombre ? "$" + e.nombre : "[[" + (i + 1) + "]]");
         const lista = noms.length <= 4 ? noms.map(code).join(", ").replace(/, ([^,]*)$/, " y $1") : "";
@@ -356,8 +383,14 @@ function dibujaTraza(el, C, D) {
         const nuevos = b.el.map(nom).filter(x => !ya.has(x)), idos = a.el.map(nom).filter(x => !ahora2.has(x));
         if (nuevos.length) frases.push(code(n) + " gana " + nuevos.map(x => code(x)).join(" y ") + ": ahora tiene " + b.el.length + (b.el.length === 1 ? " elemento." : " elementos."));
         if (idos.length) frases.push(code(n) + " pierde " + idos.map(x => code(x)).join(" y ") + ": ahora tiene " + b.el.length + (b.el.length === 1 ? " elemento." : " elementos."));
+        const k0 = b.el.findIndex((e, i) => !igual(e, a.el[i]));
+        if (!nuevos.length && !idos.length && k0 < 0) {   // solo cambia la clase (class(x) <- ...)
+          frases.push(b.clase ? code(n) + " recibe la clase " + b.clase.map(code).join(" y ") + ". Sus datos no cambian, pero ahora es un objeto de esa clase: las funciones genéricas, como " + code("print()") + ", lo tratarán según ella."
+            : code(n) + " pierde su clase: vuelve a ser una lista corriente.");
+          continue;
+        }
         if (!nuevos.length && !idos.length) {
-          const k = b.el.findIndex((e, i) => !igual(e, a.el[i])), ev = b.el[k].v, av = a.el[k].v;
+          const k = k0, ev = b.el[k].v, av = a.el[k].v;
           const ruta = n + nom(b.el[k], k);
           const camb = ev.v && av.v && ev.v.length === av.v.length ? ev.v.map((x, i) => x !== av.v[i] ? i : -1).filter(i => i >= 0) : [];
           frases.push(camb.length === 1 ? "Cambia " + code(ruta + (ev.v.length > 1 ? "[" + (camb[0] + 1) + "]" : "")) + ": valía " + esc(av.v[camb[0]]) + " y ahora vale " + esc(ev.v[camb[0]]) + "."
@@ -394,9 +427,18 @@ function dibujaTraza(el, C, D) {
       }
     }
     if (mp && prev && prev.estado) {          // dentro de una llamada, cambia algo del programa principal (<<-)
+      const refsVistas = new Set();
       for (const n of Object.keys(p.estado)) {
         const a = prev.estado[n], b = p.estado[n];
         if (a && igual(a, b)) continue;
+        if (b.ref && a) {                       // un objeto R6 cambia desde dentro de un método: lo ven todos sus nombres
+          if (refsVistas.has(b.ref)) continue; refsVistas.add(b.ref);
+          const noms = Object.keys(p.estado).filter(k => p.estado[k].ref === b.ref);
+          const camp = b.el.find((e, i) => a.el[i] && !igual(e.v, a.el[i].v));
+          frases.push("Cambia el objeto nº " + b.ref + (camp && camp.v.v && a.el.find(x => x.nombre === camp.nombre).v.v ? ": su campo " + code(camp.nombre) + " valía " + esc(a.el.find(x => x.nombre === camp.nombre).v.v[0]) + " y ahora vale " + esc(camp.v.v[0]) : "") + "." +
+            (noms.length > 1 ? " Se ve el cambio en " + noms.map(code).join(" y ") + " a la vez, porque son el mismo objeto." : ""));
+          continue;
+        }
         const flecha = /<<-/.test(L[p.linea - 1] || "") ? " La flecha doble " + code("<<-") + " no crea una variable local: busca " + code(n) + " en los entornos padre y la cambia allí." : "";
         frases.push(a && a.v && b.v && a.v.length === 1 && b.v.length === 1
           ? "Cambia " + code(n) + " en el programa principal: valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + "." + flecha
@@ -442,9 +484,10 @@ function dibujaTraza(el, C, D) {
     if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const UNID = { days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" };
-    const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
+    const lon = v.ref ? "objeto nº " + v.ref + " · por referencia" : v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
       : v.v ? "longitud " + (v.nv || v.v.length).toLocaleString("es-ES") + (v.u ? " · " + (UNID[v.u] || v.u) : "") + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
-    return '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
+    return (v.clase ? '<span class="tipo clase">clase ' + esc(v.clase.join(" · ")) + "</span>" : "") +
+      '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
   }
 
   // El dibujo de un valor: casillas para un vector, casillas y niveles para un factor,
