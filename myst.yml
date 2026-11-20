@@ -31,6 +31,7 @@ project:
         - file: capitulos/08-matrices.md
         - file: capitulos/09-data-frames.md
         - file: capitulos/10-cadenas.md
+        - file: capitulos/11-fechas.md
 site:
   template: book-theme
   options:

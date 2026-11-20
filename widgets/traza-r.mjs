@@ -293,6 +293,12 @@ function dibujaTraza(el, C, D) {
         }
         continue;
       }
+      if (!a && b.t === "Date" && b.k) {
+        frases.push(b.v.length === 1 ? "Se crea " + code(n) + ", una fecha (" + code("Date") + "). Por dentro es un número, " + esc(b.k[0]) + ": los días que han pasado desde el 1 de enero de 1970."
+          : "Se crea " + code(n) + ", un vector de " + b.v.length + " fechas (" + code("Date") + "). Por dentro, cada fecha es un número: los días que han pasado desde el 1 de enero de 1970 (el número pequeño de cada casilla).");
+        continue;
+      }
+      if (!a && b.u) { frases.push("Se crea " + code(n) + ", una diferencia de tiempos (" + code("difftime") + ") medida " + ({ days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" }[b.u] || "en " + b.u) + "."); continue; }
       if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
       if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
@@ -333,8 +339,9 @@ function dibujaTraza(el, C, D) {
     if (v.cols) return '<span class="tipo">data.frame</span><span class="lon">' + v.nf + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>";
     if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
+    const UNID = { days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" };
     const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
-      : v.v ? "longitud " + v.v.length + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
+      : v.v ? "longitud " + v.v.length + (v.u ? " · " + (UNID[v.u] || v.u) : "") + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
     return '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
   }
 
@@ -525,6 +532,7 @@ const EJEMPLOS = [
   { nombre: "Una lista", codigo: 'alumno <- list(nombre = "Marta", notas = c(7, 8.5, 6))\nalumno$notas[2] <- 9\nalumno$grupo <- "1ºB"\nmedia <- mean(alumno$notas)\nstr(alumno)' },
   { nombre: "Una tabla", codigo: 'clase <- data.frame(\n  nombre = c("Marta", "Pau", "Sara"),\n  nota = c(7.2, 4.1, 9.5)\n)\nclase$aprobado <- clase$nota >= 5\nmejores <- clase[order(clase$nota, decreasing = TRUE), ]\nmean(clase$nota)' },
   { nombre: "Limpiar textos", codigo: 'nombres <- c("marta", "MARTA ", " Pau")\nx <- trimws(nombres)\nlimpios <- paste0(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))))\nunique(limpios)' },
+  { nombre: "Fechas", codigo: 'entregas <- as.Date(c("2024-10-15", "2024-11-04", "2024-12-20"))\nhoy <- as.Date("2024-11-01")\nfaltan <- as.integer(entregas - hoy)\nentregas[faltan >= 0]' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `

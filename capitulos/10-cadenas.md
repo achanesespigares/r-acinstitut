@@ -168,7 +168,7 @@ En Python y en Julia, una cadena es un solo valor, y para trabajar con muchas ha
 
 ## La grieta
 
-En el formulario también había una fecha de nacimiento, guardada como texto: `"10/1/2024"`, `"9/12/2023"`. Prueba a compararlas: `"10/1/2024" < "9/12/2023"` da `TRUE`, porque compara carácter a carácter y el «1» va antes que el «9». Con fechas en texto no se puede ordenar, ni restar para saber cuántos días han pasado, ni saber qué día de la semana era. Hace falta un tipo de dato que entienda el calendario: las **fechas**.
+En el formulario también había una fecha de nacimiento, guardada como texto: `"10/1/2024"`, `"9/12/2023"`. Prueba a compararlas: `"10/1/2024" < "9/12/2023"` da `TRUE`, porque compara carácter a carácter y el «1» va antes que el «9». Con fechas en texto no se puede ordenar, ni restar para saber cuántos días han pasado, ni saber qué día de la semana era. Hace falta un tipo de dato que entienda el calendario: las [**fechas**](11-fechas.md).
 
 ## Ejercicios
 

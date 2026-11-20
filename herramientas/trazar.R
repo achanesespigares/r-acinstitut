@@ -28,6 +28,8 @@ SIN_VALOR <- structure(list(), class = "sin_valor")   # marca de «la función n
 # ── Cómo se describe un valor ────────────────────────────────────────────
 un_valor <- function(e) {
   if (is.na(e)) return("NA")
+  if (inherits(e, c("Date", "POSIXt"))) return(format(e))
+  if (inherits(e, "difftime")) return(format(as.numeric(e), digits = 7))
   if (is.character(e)) return(paste0('"', e, '"'))
   if (is.logical(e)) return(if (e) "TRUE" else "FALSE")
   format(e, digits = 7)
@@ -50,6 +52,12 @@ describe <- function(x, prof = 0) {
     })
     return(list(t = "list", el = el))
   }
+  if (inherits(x, "Date")) {                 # una fecha: el día, y por dentro los días desde el 1-1-1970
+    num <- as.numeric(x)
+    return(list(t = "Date", v = as.list(ifelse(is.na(x), "NA", format(x))), k = as.list(ifelse(is.na(num), "NA", format(num, scientific = FALSE, trim = TRUE)))))
+  }
+  if (inherits(x, "difftime"))               # una diferencia de tiempos, con su unidad
+    return(list(t = "difftime", v = as.list(vapply(unclass(x), un_valor, "", USE.NAMES = FALSE)), u = units(x)))
   if (is.factor(x)) {                       # un factor: las etiquetas, los códigos enteros y los niveles
     etq <- as.character(x); cod <- as.integer(x)
     out <- list(t = "factor", v = as.list(ifelse(is.na(etq), "NA", etq)), k = as.list(ifelse(is.na(cod), "NA", as.character(cod))),
