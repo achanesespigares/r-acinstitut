@@ -89,6 +89,17 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz table.mat td.cambia{ background:var(--suave); border-color:var(--acento); }
 .tz table.mat td.foco{ outline:3px solid var(--acento); outline-offset:-3px; background:var(--suave); }
 .tz table.mat th.foco{ color:var(--acento); font-weight:700; }
+.tz table.df{ border-collapse:collapse; font:500 13.5px/1.2 var(--mono); }
+.tz table.df th, .tz table.df td{ border-bottom:1px solid var(--filete); padding:6px 7px; text-align:left; white-space:nowrap; }
+.tz table.df thead th{ border-bottom:2px solid var(--tinta); vertical-align:bottom; font-weight:700; }
+.tz table.df thead th .tipo{ display:block; margin-top:3px; font:600 9px/1 var(--titulo); letter-spacing:.06em; text-transform:uppercase; color:var(--acento); }
+.tz table.df tbody th{ color:var(--banda); font-weight:500; font-size:12px; text-align:right; }
+.tz table.df td.dcha{ text-align:right; }
+.tz table.df td.na{ color:var(--banda); font-style:italic; }
+.tz table.df .nueva{ background:var(--suave); }
+.tz table.df td.cambia{ background:var(--suave); color:var(--acento); font-weight:700; }
+.tz table.df tr.foco th, .tz table.df tr.foco td{ background:var(--suave); }
+.tz table.df tr.foco th{ color:var(--acento); font-weight:700; box-shadow:inset 4px 0 0 var(--acento); }
 .tz .capa{ font:600 11.5px/1 var(--mono); color:var(--banda); margin:6px 0 3px; }
 .tz .cas.cambia .v{ background:var(--suave); border-color:var(--acento); position:relative; z-index:1; }
 .tz .cas.foco .v{ border:3px solid var(--acento); background:var(--suave); position:relative; z-index:2; }
@@ -228,6 +239,26 @@ function dibujaTraza(el, C, D) {
     const ahora = mp ? mp.vars : p.estado, antes = mp ? (ma && ma.id === mp.id ? ma.vars : {}) : prev.estado;
     for (const n of Object.keys(ahora)) {
       const a = antes[n], b = ahora[n];
+      if (b.cols) {
+        const tip = c => c.nombre + " (" + tipoCol(c) + ")";
+        const y = arr => arr.join(", ").replace(/, ([^,]*)$/, " y $1");
+        const forma = b.nf + (b.nf === 1 ? " fila" : " filas") + " y " + b.cols.length + (b.cols.length === 1 ? " columna" : " columnas");
+        if (!a || !a.cols) { frases.push("Se crea " + code(n) + ", un data frame de " + forma + (b.cols.length <= 5 ? ": " + y(b.cols.map(tip)) : "") + ". Cada columna es un vector con su propio tipo."); continue; }
+        const nA = new Set(a.cols.map(c => c.nombre)), nB = new Set(b.cols.map(c => c.nombre));
+        const nuevas = b.cols.filter(c => !nA.has(c.nombre)), idas = a.cols.filter(c => !nB.has(c.nombre));
+        if (nuevas.length) frases.push(code(n) + " gana " + (nuevas.length === 1 ? "la columna " : "las columnas ") + y(nuevas.map(c => code(c.nombre) + " (" + tipoCol(c) + ")")) + ".");
+        if (idas.length) frases.push(code(n) + " pierde " + (idas.length === 1 ? "la columna " : "las columnas ") + y(idas.map(c => code(c.nombre))) + ".");
+        if (b.nf !== a.nf) frases.push(code(n) + " pasa de " + a.nf + " a " + b.nf + (b.nf === 1 ? " fila." : " filas."));
+        else if (b.filas && a.filas && b.filas.join() !== a.filas.join() && [...b.filas].sort().join() === [...a.filas].sort().join()) frases.push("Las filas de " + code(n) + " cambian de orden.");
+        else if (!nuevas.length && !idas.length) {
+          for (const c of b.cols) {
+            const ca = a.cols.find(x => x.nombre === c.nombre); if (!ca || igual(ca, c)) continue;
+            const k = c.v.v.findIndex((x, i) => x !== ca.v.v[i]);
+            frases.push("Cambia " + code(n + "$" + c.nombre + "[" + (k + 1) + "]") + ": valía " + esc(ca.v.v[k]) + " y ahora vale " + esc(c.v.v[k]) + "."); break;
+          }
+        }
+        continue;
+      }
       if (b.d) {
         const desc = (b.t === "matrix" ? "una matriz de " + b.d[0] + (b.d[0] === 1 ? " fila" : " filas") + " y " + b.d[1] + (b.d[1] === 1 ? " columna" : " columnas")
           : "un array de " + b.d.join(" × ")) + " (" + (TIPOS[b.tipo] || b.tipo) + ")";
@@ -267,7 +298,9 @@ function dibujaTraza(el, C, D) {
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length) {
         const camb = b.v.map((x, i) => x !== a.v[i] ? i : -1).filter(i => i >= 0);
-        if (camb.length === 1 && b.v.length > 1) frases.push("Cambia " + code(n + "[" + (camb[0] + 1) + "]") + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
+        const pos = i => b.n ? '"' + b.n[i] + '"' : String(i + 1);
+        if (!camb.length && b.n && !igual(a.n, b.n)) { frases.push(code(n) + " recibe nombres: " + b.n.map(x => code(x)).join(", ").replace(/, ([^,]*)$/, " y $1") + ". Los valores no cambian; ahora cada casilla se puede pedir por su nombre."); continue; }
+        if (camb.length === 1 && b.v.length > 1) frases.push("Cambia " + code(n + "[" + pos(camb[0]) + "]") + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
         else if (b.v.length === 1) frases.push(code(n) + " valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + ".");
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
       } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + b.v.length + " elementos." : "."));
@@ -297,6 +330,7 @@ function dibujaTraza(el, C, D) {
   // Cabecera de un valor: su tipo y su tamaño
   const TIPOS = { double: "numeric", integer: "integer", character: "character", logical: "logical", complex: "complex" };
   function cabecera(v) {
+    if (v.cols) return '<span class="tipo">data.frame</span><span class="lon">' + v.nf + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>";
     if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
@@ -307,6 +341,7 @@ function dibujaTraza(el, C, D) {
   // El dibujo de un valor: casillas para un vector, casillas y niveles para un factor,
   // y para una lista, una caja por elemento con su nombre ($nombre) o su posición ([[i]])
   function valor(v, a, op = {}) {
+    if (v.cols) return tablaDF(v, a, op.fila);
     if (v.d) return rejilla(v, a, op.celda);
     if (v.el) {
       const ant = a && a.el ? a.el : null;
@@ -353,6 +388,27 @@ function dibujaTraza(el, C, D) {
     return html;
   }
 
+  // Un data frame: una tabla con el nombre y el tipo de cada columna, y el nombre de cada fila.
+  // Los textos van sin comillas, como los enseña R.
+  const tipoCol = c => c.v.niveles ? "factor" : (c.v.t || "");
+  function tablaDF(v, a, filaFoco) {
+    const sinComillas = x => /^".*"$/.test(x) ? x.slice(1, -1) : x;
+    const antes = a && a.cols ? Object.fromEntries(a.cols.map(c => [c.nombre, c])) : null;
+    const filasA = a && a.filas ? a.filas : [];
+    let html = '<div class="rejilla"><table class="df"><thead><tr><th></th>' + v.cols.map(c =>
+      '<th class="' + (antes && !antes[c.nombre] ? "nueva" : "") + '">' + esc(c.nombre) + '<span class="tipo">' + esc(tipoCol(c)) + "</span></th>").join("") + "</tr></thead><tbody>";
+    for (let i = 0; i < v.nf; i++) {
+      const nom = v.filas ? v.filas[i] : String(i + 1), iA = filasA.indexOf(nom);
+      html += '<tr class="' + (filaFoco === i + 1 ? "foco" : "") + '"><th>' + esc(nom) + "</th>" + v.cols.map(c => {
+        const x = (c.v.v || [])[i] ?? "", ca = antes && antes[c.nombre];
+        const prev = ca && iA >= 0 ? (ca.v.v || [])[iA] : undefined;
+        const cl = [c.v.t === "numeric" || c.v.t === "integer" ? "dcha" : "", x === "NA" ? "na" : "", antes && !ca ? "nueva" : "", prev !== undefined && prev !== x ? "cambia" : ""].filter(Boolean).join(" ");
+        return '<td class="' + cl + '">' + esc(sinComillas(x)) + "</td>";
+      }).join("") + "</tr>";
+    }
+    return html + "</tbody></table></div>";
+  }
+
   // Las variables de un ámbito (el programa principal o una llamada)
   function variables(est, ant, conFoco) {
     let html = "";
@@ -363,9 +419,10 @@ function dibujaTraza(el, C, D) {
       const cambio = !a || !igual(a, v);
       const pp = C.puntero;
       const foco = conFoco && n === C.foco && v.v && !v.d && pp && !Array.isArray(pp) && est[pp] && est[pp].v ? Number(est[pp].v[0]) : null;
+      const fila = conFoco && n === C.foco && v.cols && pp && !Array.isArray(pp) && est[pp] && est[pp].v ? Number(est[pp].v[0]) : null;
       const celda = conFoco && n === C.foco && v.d && Array.isArray(pp) && pp.every(x => est[x] && est[x].v) ? pp.map(x => Number(est[x].v[0])) : null;
       html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + "</span>" + cabecera(v) + "</div>" +
-        valor(v, a, { grande: conFoco && n === C.foco && !v.d, foco: foco >= 1 && foco <= (v.v || []).length ? foco : null, puntero: C.puntero, celda }) + "</div>";
+        valor(v, a, { grande: conFoco && n === C.foco && !v.d, foco: foco >= 1 && foco <= (v.v || []).length ? foco : null, puntero: C.puntero, celda, fila }) + "</div>";
     }
     return html;
   }
@@ -466,6 +523,7 @@ const EJEMPLOS = [
   { nombre: "Una función", codigo: 'iva <- function(precio, tipo = 0.21) {\n  impuesto <- precio * tipo\n  precio + impuesto\n}\np <- iva(100)\nq <- iva(50, tipo = 0.10)\np + q' },
   { nombre: "Recursión", codigo: 'factorial <- function(n) {\n  if (n <= 1) {\n    return(1)\n  }\n  n * factorial(n - 1)\n}\nfactorial(4)' },
   { nombre: "Una lista", codigo: 'alumno <- list(nombre = "Marta", notas = c(7, 8.5, 6))\nalumno$notas[2] <- 9\nalumno$grupo <- "1ºB"\nmedia <- mean(alumno$notas)\nstr(alumno)' },
+  { nombre: "Una tabla", codigo: 'clase <- data.frame(\n  nombre = c("Marta", "Pau", "Sara"),\n  nota = c(7.2, 4.1, 9.5)\n)\nclase$aprobado <- clase$nota >= 5\nmejores <- clase[order(clase$nota, decreasing = TRUE), ]\nmean(clase$nota)' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `

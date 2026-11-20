@@ -29,6 +29,7 @@ project:
         - file: capitulos/06-factores.md
         - file: capitulos/07-listas.md
         - file: capitulos/08-matrices.md
+        - file: capitulos/09-data-frames.md
 site:
   template: book-theme
   options:

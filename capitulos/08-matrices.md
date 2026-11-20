@@ -166,7 +166,7 @@ R y Julia guardan las matrices por columnas y cuentan desde 1. NumPy las guarda 
 
 ## La grieta
 
-Una matriz guarda un solo tipo de dato. Prueba a añadir a `notas` una columna con el grupo de cada alumno: `cbind(notas, c("A", "B", "A"))`. Las notas se vuelven texto, `"7"`, `"8.5"`, y ya no se puede calcular ninguna media. Una tabla de datos de verdad tiene columnas de tipos distintos: el nombre es un texto, el grupo es una categoría y las notas son números. Hace falta una tabla en la que cada columna tenga su tipo: el **data frame**.
+Una matriz guarda un solo tipo de dato. Prueba a añadir a `notas` una columna con el grupo de cada alumno: `cbind(notas, c("A", "B", "A"))`. Las notas se vuelven texto, `"7"`, `"8.5"`, y ya no se puede calcular ninguna media. Una tabla de datos de verdad tiene columnas de tipos distintos: el nombre es un texto, el grupo es una categoría y las notas son números. Hace falta una tabla en la que cada columna tenga su tipo: el [**data frame**](09-data-frames.md).
 
 ## Ejercicios
 

@@ -35,6 +35,11 @@ un_valor <- function(e) {
 
 describe <- function(x, prof = 0) {
   if (is.function(x)) return(list(t = "function"))
+  if (is.data.frame(x) && nrow(x) <= 40 && ncol(x) <= 12) {
+    # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las filas
+    cols <- lapply(names(x), function(n) list(nombre = n, v = describe(x[[n]], prof + 1)))
+    return(list(t = "data.frame", nf = nrow(x), cols = cols, filas = as.list(rownames(x))))
+  }
   if (is.list(x) && !is.data.frame(x) && is.null(attr(x, "class", exact = TRUE)) && prof < 4 && length(x) <= 30) {
     # una lista: cada elemento con su nombre (o su posición) y su valor, que puede ser otra lista
     nom <- names(x)
