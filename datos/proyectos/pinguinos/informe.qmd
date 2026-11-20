@@ -1,0 +1,33 @@
+---
+title: "Machos y hembras"
+lang: es
+format: html
+params:
+  especie: "Adelia"
+---
+
+```{r}
+#| include: false
+library(ggplot2)
+source("R/diferencia_sexos.R")
+pinguinos <- read.csv("datos/pinguinos.csv")
+d <- diferencia_sexos(pinguinos, params$especie)
+p_texto <- if (d$p < 0.001) "menor que 0.001" else round(d$p, 3)
+```
+
+## Los pingüinos `{r} params$especie`
+
+Los machos pesan de media `{r} round(d$machos)` g y las hembras, `{r} round(d$hembras)` g: una diferencia de `{r} round(d$diferencia)` g. La prueba t da un valor p `{r} p_texto`.
+
+```{r}
+#| label: fig-masa
+#| fig-cap: "Masa corporal de machos y hembras"
+#| echo: false
+#| warning: false
+con_sexo <- subset(pinguinos, especie == params$especie & !is.na(sexo))
+ggplot(con_sexo, aes(sexo, masa_corporal_g, fill = sexo)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(x = NULL, y = "Masa (g)")
+```
+
+Como se ve en la @fig-masa, los machos son más pesados que las hembras.

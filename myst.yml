@@ -54,6 +54,10 @@ project:
         - file: capitulos/25-informes-quarto.md
         - file: capitulos/26-paquetes.md
         - file: capitulos/27-shiny.md
+    - title: Proyectos
+      children:
+        - file: capitulos/28-proyecto-pinguinos.md
+        - file: capitulos/29-proyecto-aula.md
 site:
   template: book-theme
   options:

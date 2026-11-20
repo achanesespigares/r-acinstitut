@@ -237,7 +237,7 @@ En R, las entradas se leen como `input$examen1`; en Python, se llaman como funci
 
 ## La grieta
 
-Con este capítulo se cierra la parte V, y con ella el recorrido por R: de la calculadora del capítulo 1 a una aplicación web que responde al momento, pasando por los vectores, las tablas, los gráficos, los modelos, los entornos, las funciones que avisan, los informes y los paquetes. Pero cada capítulo ha mirado una pieza. ¿Qué pasa cuando hay que juntarlas todas para responder una pregunta de verdad, desde unos datos crudos hasta un resultado que otra persona pueda usar? Eso es un **proyecto**, y es lo que viene ahora.
+Con este capítulo se cierra la parte V, y con ella el recorrido por R: de la calculadora del capítulo 1 a una aplicación web que responde al momento, pasando por los vectores, las tablas, los gráficos, los modelos, los entornos, las funciones que avisan, los informes y los paquetes. Pero cada capítulo ha mirado una pieza. ¿Qué pasa cuando hay que juntarlas todas para responder una pregunta de verdad, desde unos datos crudos hasta un resultado que otra persona pueda usar? Eso es un [**proyecto**](28-proyecto-pinguinos.md), y es lo que viene ahora.
 
 ## Ejercicios
 

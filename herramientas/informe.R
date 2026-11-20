@@ -69,7 +69,7 @@ trozos <- function(L, desde) {
 md_html <- function(md) markdown_html(md, extensions = c("table", "strikethrough"))
 
 # Un render completo del documento con unos valores de los parámetros
-genera <- function(qmd, valores, prefijo) {
+genera <- function(qmd, valores, prefijo, carpeta = NULL) {
   L <- strsplit(qmd, "\n", fixed = TRUE)[[1]]
   fy <- which(L == "---")
   cab <- yaml.load(paste(L[(fy[1] + 1):(fy[2] - 1)], collapse = "\n"))
@@ -77,7 +77,9 @@ genera <- function(qmd, valores, prefijo) {
   for (n in names(valores)) params[[n]] <- valores[[n]]
   env <- new.env(parent = globalenv())
   if (!is.null(params)) assign("params", params, envir = env)
-  opts_knit$set(progress = FALSE, verbose = FALSE)
+  # Quarto ejecuta el documento desde su carpeta: con "carpeta" en la configuración, los bloques se
+  # ejecutan allí (las rutas del documento son relativas a ella); los gráficos siguen yendo al libro
+  opts_knit$set(progress = FALSE, verbose = FALSE, root.dir = if (is.null(carpeta)) NULL else normalizePath(carpeta))
   # las opciones que pone Quarto a knitr (comment = NA; los avisos y mensajes, a la vista), y las del documento
   ex <- cab$execute
   opts_chunk$restore()
@@ -164,9 +166,12 @@ procesa <- function(fichero) {
   for (i in seq_along(lineas)) {
     if (!grepl("^```\\{anywidget\\} .*informe\\.mjs", lineas[i])) next
     datos <- fromJSON(lineas[i + 1], simplifyVector = FALSE)
-    fin <- max(which(seq_along(lineas) < i & lineas == "````"))
-    ini <- max(which(seq_along(lineas) < fin & grepl("^````qmd", lineas)))
-    qmd <- paste(lineas[(ini + 1):(fin - 1)], collapse = "\n")
+    # el documento: el archivo que dice "qmd" en la configuración, o el bloque ````qmd de antes
+    if (!is.null(datos$config$qmd)) qmd <- paste(readLines(datos$config$qmd, encoding = "UTF-8", warn = FALSE), collapse = "\n") else {
+      fin <- max(which(seq_along(lineas) < i & lineas == "````"))
+      ini <- max(which(seq_along(lineas) < fin & grepl("^````qmd", lineas)))
+      qmd <- paste(lineas[(ini + 1):(fin - 1)], collapse = "\n")
+    }
     n <- n + 1
     # los valores que se pueden probar del parámetro: config$parametros = {"isla": ["Biscoe", "Dream"]}
     vals <- datos$config$parametros
@@ -174,7 +179,7 @@ procesa <- function(fichero) {
     versiones <- list()
     for (v in combos) {
       valores <- if (is.na(v)) list() else setNames(list(v), names(vals)[1])
-      versiones[[if (is.na(v)) "unica" else v]] <- genera(qmd, valores, paste0(base, "-i", n, if (!is.na(v)) paste0("-", gsub("\\W", "", v))))
+      versiones[[if (is.na(v)) "unica" else v]] <- genera(qmd, valores, paste0(base, "-i", n, if (!is.na(v)) paste0("-", gsub("[^A-Za-z0-9]", "", iconv(v, to = "ASCII//TRANSLIT")))), datos$config$carpeta)
     }
     archivo <- file.path(CARPETA, paste0(base, "-", n, ".json"))
     writeLines(as.character(toJSON(list(qmd = qmd, parametro = if (length(vals)) names(vals)[1] else NULL,

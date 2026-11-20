@@ -33,6 +33,14 @@ huellas <- function(dir) {
 limpia <- function(x) {
   x <- gsub("\033\\[[0-9;]*[A-Za-z]", "", x)
   x <- x[!grepl("^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] ", x) & !grepl("^Duration: ", x)]   # sin tiempos: cambian en cada ejecución
+  x <- x[!grepl("^Installing [0-9]+ packages?:", x)]           # lo que instale de paso depende de la máquina
+  # las pilas de llamadas de testthat (Backtrace) no dicen nada aquí: se quitan hasta la línea en blanco
+  fuera <- FALSE; quedan <- logical(length(x))
+  for (i in seq_along(x)) { if (grepl("^Backtrace:", x[i])) fuera <- TRUE; quedan[i] <- !fuera; if (fuera && x[i] == "") fuera <- FALSE }
+  x <- x[quedan]
+  # testthat repite al final la lista de fallos ya contados: se deja solo el resumen
+  i <- grep("^── Failed tests", x); j <- grep("^\\[ FAIL", x)
+  if (length(i) && length(j) && j[1] > i[1]) x <- x[-(i[1]:(j[1] - 1))]
   x <- sub("\\s+$", "", x)
   x <- x[!(x == "" & c(FALSE, head(x, -1) == ""))]
   paste(x, collapse = "\n")
