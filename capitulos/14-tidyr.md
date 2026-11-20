@@ -173,7 +173,7 @@ Y para alargar, `pivot_longer()` en R, `melt()` en pandas y `stack()` en Julia. 
 
 ## La grieta
 
-Las tablas ya dicen mucho: los machos pesan más, los papúas son los más grandes, cada especie vive en sus islas. Pero una tabla de números obliga a leer fila a fila, y hay preguntas que no se responden con medias: ¿la masa crece con el largo de la aleta? ¿Hay pingüinos raros, lejos de los demás? ¿Las tres especies se separan o se mezclan? Para ver la forma de los datos de un vistazo hace falta dibujarlos: **ggplot2**.
+Las tablas ya dicen mucho: los machos pesan más, los papúas son los más grandes, cada especie vive en sus islas. Pero una tabla de números obliga a leer fila a fila, y hay preguntas que no se responden con medias: ¿la masa crece con el largo de la aleta? ¿Hay pingüinos raros, lejos de los demás? ¿Las tres especies se separan o se mezclan? Para ver la forma de los datos de un vistazo hace falta dibujarlos: [**ggplot2**](15-ggplot2.md).
 
 ## Ejercicios
 

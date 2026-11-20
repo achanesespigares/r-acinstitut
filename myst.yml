@@ -37,6 +37,7 @@ project:
         - file: capitulos/12-leer-datos.md
         - file: capitulos/13-dplyr.md
         - file: capitulos/14-tidyr.md
+        - file: capitulos/15-ggplot2.md
 site:
   template: book-theme
   options:

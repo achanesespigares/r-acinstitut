@@ -252,7 +252,8 @@ function dibujaTraza(el, C, D) {
     }
     if (p.tipo === "capa") {
       if (p.etapa === 0) return code(p.texto) + " prepara el lienzo: los datos y qué columna va a cada eje. Todavía no hay nada dibujado; cada capa que se suma con " + code("+") + " añade algo.";
-      return "Capa " + p.etapa + " de " + p.total + ": se suma " + code(p.texto) + "." + (p.etapa === p.total ? " El gráfico está completo." : "");
+      const hace = queHaceCapa(p.texto);
+      return "Capa " + p.etapa + " de " + p.total + ": se suma " + code(p.texto) + (hace ? ", que " + hace : "") + "." + (p.etapa === p.total ? " El gráfico está completo." : "");
     }
     if (p.tipo === "llamada") {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
@@ -466,6 +467,31 @@ function dibujaTraza(el, C, D) {
   const img = src => !src ? "" : /^data:/.test(src) ? src : new URL("../" + src, import.meta.url).href;
 
   // Lo que es un valor, en pocas palabras (para la narración de las tuberías)
+  // Qué añade cada capa de ggplot2, en una frase (para la narración)
+  function queHaceCapa(t) {
+    const f = (t.match(/^([\w.]+)\(/) || [])[1] || "";
+    const conAes = /\baes\(/.test(t) ? ". Su " + code("aes()") + " conecta columnas de la tabla con propiedades del dibujo" : "";
+    const tabla = {
+      geom_point: "dibuja un punto por cada fila de la tabla",
+      geom_jitter: "dibuja un punto por fila, movido un poco al azar para que no se tapen unos a otros",
+      geom_line: "une los puntos con una línea, en el orden del eje horizontal",
+      geom_bar: "cuenta cuántas filas hay de cada valor y dibuja una barra para cada uno",
+      geom_col: "dibuja una barra por fila, con la altura que ya trae la tabla",
+      geom_histogram: "reparte los valores en intervalos y levanta una barra en cada uno, tan alta como los valores que caen dentro",
+      geom_density: "dibuja una curva suave con la forma de la distribución",
+      geom_boxplot: "dibuja una caja por grupo: la raya de dentro es la mediana y la caja abarca la mitad central de los datos",
+      geom_smooth: /"lm"/.test(t) ? "calcula la recta que mejor se ajusta a los puntos y la dibuja, con una banda gris de incertidumbre" : "dibuja una curva que resume la tendencia de los puntos",
+      geom_hline: "traza una línea horizontal de referencia", geom_vline: "traza una línea vertical de referencia",
+      geom_text: "escribe un texto en cada punto", labs: "cambia los títulos de los ejes y de la leyenda, sin tocar ningún dato",
+      facet_wrap: "parte el gráfico en paneles, uno por cada valor de la variable", facet_grid: "parte el gráfico en una rejilla de paneles",
+      coord_flip: "intercambia los ejes", ggtitle: "pone un título al gráfico",
+    };
+    if (tabla[f]) return tabla[f] + conAes;
+    if (/^scale_/.test(f)) return "cambia la escala: cómo se traduce una columna a posición, color o tamaño";
+    if (/^theme/.test(f)) return "cambia el aspecto (fondo, letra, rejilla) sin tocar los datos";
+    if (/^coord_/.test(f)) return "cambia el sistema de coordenadas";
+    return "";
+  }
   function resumen(v) {
     if (!v) return "algo";
     if (v.cols) return "una tabla de " + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " y " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") +
