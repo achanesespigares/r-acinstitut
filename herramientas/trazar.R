@@ -57,7 +57,15 @@ describe <- function(x, prof = 0) {
     if (!is.null(names(x))) out$n <- as.list(names(x))
     return(out)
   }
-  if (is.matrix(x)) return(list(t = "matrix", d = as.list(dim(x)), v = as.list(vapply(as.vector(x), un_valor, ""))))
+  if (is.array(x) && length(dim(x)) %in% 2:3 && is.atomic(x) && length(x) <= 400) {
+    # una matriz o un array de 3 dimensiones: los valores (por columnas, como los guarda R), las
+    # dimensiones, el tipo de los elementos y los nombres de filas y columnas, si los tiene
+    out <- list(t = if (length(dim(x)) == 2) "matrix" else "array", tipo = typeof(x), d = as.list(dim(x)),
+                v = as.list(vapply(as.vector(x), un_valor, "", USE.NAMES = FALSE)))
+    dn <- dimnames(x)
+    if (!is.null(dn)) out$dn <- lapply(dn, function(n) if (is.null(n)) list() else as.list(n))
+    return(out)
+  }
   list(t = class(x)[1], r = paste(utils::capture.output(print(x)), collapse = "\n"))
 }
 

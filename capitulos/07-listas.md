@@ -150,7 +150,7 @@ Una lista de R hace a la vez dos papeles que Python separa: la lista por posici�
 
 ## La grieta
 
-Ahora queremos las notas de toda la clase en las tres evaluaciones. Con una lista de alumnos funciona, pero para calcular la media de la segunda evaluación hay que entrar en cada ficha, una a una. Esos datos son todos del mismo tipo y forman un rectángulo: una fila por alumno y una columna por evaluación. Hace falta una estructura que entienda las filas y las columnas: las **matrices**.
+Ahora queremos las notas de toda la clase en las tres evaluaciones. Con una lista de alumnos funciona, pero para calcular la media de la segunda evaluación hay que entrar en cada ficha, una a una. Esos datos son todos del mismo tipo y forman un rectángulo: una fila por alumno y una columna por evaluación. Hace falta una estructura que entienda las filas y las columnas: las [**matrices**](08-matrices.md).
 
 ## Ejercicios
 

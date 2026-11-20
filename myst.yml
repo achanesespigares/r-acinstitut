@@ -28,6 +28,7 @@ project:
       children:
         - file: capitulos/06-factores.md
         - file: capitulos/07-listas.md
+        - file: capitulos/08-matrices.md
 site:
   template: book-theme
   options:

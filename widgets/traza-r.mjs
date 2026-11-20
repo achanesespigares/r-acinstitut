@@ -80,6 +80,16 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .elem-cab .lon{ font:400 12px/1 var(--texto); color:var(--banda); }
 .tz .elem.cambia > .elem-cab .nom{ color:var(--acento); }
 .tz .elem .lista{ border-left-color:var(--filete); }
+.tz .rejilla{ overflow-x:auto; padding-bottom:2px; }
+.tz table.mat{ border-collapse:collapse; font:600 15px/1 var(--mono); }
+.tz table.mat td{ border:2px solid var(--tinta); min-width:46px; height:36px; padding:0 7px; text-align:center; background:#fff; transition:background .25s; }
+.tz table.mat th{ font:500 11.5px/1 var(--mono); color:var(--banda); padding:3px 6px; white-space:nowrap; }
+.tz table.mat thead th{ text-align:center; }
+.tz table.mat tbody th{ text-align:right; }
+.tz table.mat td.cambia{ background:var(--suave); border-color:var(--acento); }
+.tz table.mat td.foco{ outline:3px solid var(--acento); outline-offset:-3px; background:var(--suave); }
+.tz table.mat th.foco{ color:var(--acento); font-weight:700; }
+.tz .capa{ font:600 11.5px/1 var(--mono); color:var(--banda); margin:6px 0 3px; }
 .tz .cas.cambia .v{ background:var(--suave); border-color:var(--acento); position:relative; z-index:1; }
 .tz .cas.foco .v{ border:3px solid var(--acento); background:var(--suave); position:relative; z-index:2; }
 .tz .cas.foco .idx{ color:var(--acento); font-weight:600; }
@@ -218,6 +228,18 @@ function dibujaTraza(el, C, D) {
     const ahora = mp ? mp.vars : p.estado, antes = mp ? (ma && ma.id === mp.id ? ma.vars : {}) : prev.estado;
     for (const n of Object.keys(ahora)) {
       const a = antes[n], b = ahora[n];
+      if (b.d) {
+        const desc = (b.t === "matrix" ? "una matriz de " + b.d[0] + (b.d[0] === 1 ? " fila" : " filas") + " y " + b.d[1] + (b.d[1] === 1 ? " columna" : " columnas")
+          : "un array de " + b.d.join(" × ")) + " (" + (TIPOS[b.tipo] || b.tipo) + ")";
+        if (!a || !a.d) { frases.push("Se crea " + code(n) + ", " + desc + "."); continue; }
+        if (a.d.join() !== b.d.join()) { frases.push(code(n) + " cambia de forma: ahora es " + desc + "."); continue; }
+        const camb = b.v.map((x, i) => x !== a.v[i] ? i : -1).filter(i => i >= 0);
+        const pos = x => b.d.length === 2 ? "[" + (x % b.d[0] + 1) + ", " + (Math.floor(x / b.d[0]) + 1) + "]"
+          : "[" + (x % b.d[0] + 1) + ", " + (Math.floor(x / b.d[0]) % b.d[1] + 1) + ", " + (Math.floor(x / (b.d[0] * b.d[1])) + 1) + "]";
+        if (camb.length === 1) frases.push("Cambia " + code(n + pos(camb[0])) + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
+        else if (camb.length) frases.push("Cambian " + camb.length + " casillas de " + code(n) + ".");
+        continue;
+      }
       if (!a && b.el) {
         const noms = b.el.map((e, i) => e.nombre ? "$" + e.nombre : "[[" + (i + 1) + "]]");
         const lista = noms.length <= 4 ? noms.map(code).join(", ").replace(/, ([^,]*)$/, " y $1") : "";
@@ -273,7 +295,10 @@ function dibujaTraza(el, C, D) {
   const condicion = p => '<div class="tz-cond"><span>' + esc(p.cond.texto) + '</span><span style="color:var(--banda)">' + esc(p.cond.valores) + '</span><span class="res ' + (p.cond.valor === "TRUE" ? "si" : "no") + '">' + p.cond.valor + "</span></div>";
 
   // Cabecera de un valor: su tipo y su tamaño
+  const TIPOS = { double: "numeric", integer: "integer", character: "character", logical: "logical", complex: "complex" };
   function cabecera(v) {
+    if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
+      (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
       : v.v ? "longitud " + v.v.length + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
     return '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
@@ -282,6 +307,7 @@ function dibujaTraza(el, C, D) {
   // El dibujo de un valor: casillas para un vector, casillas y niveles para un factor,
   // y para una lista, una caja por elemento con su nombre ($nombre) o su posición ([[i]])
   function valor(v, a, op = {}) {
+    if (v.d) return rejilla(v, a, op.celda);
     if (v.el) {
       const ant = a && a.el ? a.el : null;
       return '<div class="lista">' + v.el.map((e, i) => {
@@ -301,6 +327,32 @@ function dibujaTraza(el, C, D) {
     return '<div class="otro">' + esc(v.r || v.t) + "</div>";
   }
 
+  // Una matriz: rejilla con los nombres (o los índices) de filas y columnas. R guarda los valores por
+  // columnas, así que la casilla [i, j] de la capa k es v[i + j·filas + k·filas·columnas].
+  function rejilla(v, a, celda) {
+    const [nf, nc, nk = 1] = v.d, dn = v.dn || [];
+    const nomF = i => dn[0] && dn[0].length ? dn[0][i] : "[" + (i + 1) + ",]";
+    const nomC = j => dn[1] && dn[1].length ? dn[1][j] : "[," + (j + 1) + "]";
+    const mismo = a && a.d && a.d.join() === v.d.join();
+    let html = "";
+    for (let k = 0; k < nk; k++) {
+      if (v.d.length === 3) html += '<div class="capa">' + (dn[2] && dn[2].length ? esc(dn[2][k]) : ", , " + (k + 1)) + "</div>";
+      html += '<div class="rejilla"><table class="mat"><thead><tr><th></th>' +
+        Array.from({ length: nc }, (_, j) => '<th class="' + (celda && v.d.length === 2 && celda[1] === j + 1 ? "foco" : "") + '">' + esc(nomC(j)) + "</th>").join("") + "</tr></thead><tbody>";
+      for (let i = 0; i < nf; i++) {
+        html += '<tr><th class="' + (celda && v.d.length === 2 && celda[0] === i + 1 ? "foco" : "") + '">' + esc(nomF(i)) + "</th>";
+        for (let j = 0; j < nc; j++) {
+          const x = i + j * nf + k * nf * nc;
+          const cl = (mismo && a.v[x] !== v.v[x] ? " cambia" : "") + (celda && v.d.length === 2 && celda[0] === i + 1 && celda[1] === j + 1 ? " foco" : "");
+          html += '<td class="' + cl.trim() + '">' + esc(v.v[x]) + "</td>";
+        }
+        html += "</tr>";
+      }
+      html += "</tbody></table></div>";
+    }
+    return html;
+  }
+
   // Las variables de un ámbito (el programa principal o una llamada)
   function variables(est, ant, conFoco) {
     let html = "";
@@ -309,9 +361,11 @@ function dibujaTraza(el, C, D) {
     for (const n of orden) {
       const v = est[n], a = ant && ant[n];
       const cambio = !a || !igual(a, v);
-      const foco = conFoco && n === C.foco && v.v && C.puntero && est[C.puntero] && est[C.puntero].v ? Number(est[C.puntero].v[0]) : null;
+      const pp = C.puntero;
+      const foco = conFoco && n === C.foco && v.v && !v.d && pp && !Array.isArray(pp) && est[pp] && est[pp].v ? Number(est[pp].v[0]) : null;
+      const celda = conFoco && n === C.foco && v.d && Array.isArray(pp) && pp.every(x => est[x] && est[x].v) ? pp.map(x => Number(est[x].v[0])) : null;
       html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + "</span>" + cabecera(v) + "</div>" +
-        valor(v, a, { grande: conFoco && n === C.foco, foco: foco >= 1 && foco <= (v.v || []).length ? foco : null, puntero: C.puntero }) + "</div>";
+        valor(v, a, { grande: conFoco && n === C.foco && !v.d, foco: foco >= 1 && foco <= (v.v || []).length ? foco : null, puntero: C.puntero, celda }) + "</div>";
     }
     return html;
   }
