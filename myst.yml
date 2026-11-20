@@ -52,6 +52,7 @@ project:
       children:
         - file: capitulos/24-errores-pruebas.md
         - file: capitulos/25-informes-quarto.md
+        - file: capitulos/26-paquetes.md
 site:
   template: book-theme
   options:

@@ -336,7 +336,7 @@ Con R, Quarto usa **knitr**; con Python, un núcleo de **Jupyter**, el mismo de 
 
 ## La grieta
 
-Ya sabemos escribir funciones que avisan cuando algo va mal, probarlas y contar los resultados en un informe que se escribe solo. Pero las funciones siguen viviendo dentro de cada proyecto: si escribimos `nota_final()` para un informe y la queremos usar en otro, la copiamos y la pegamos. Y si un día la corregimos, hay que acordarse de corregir todas las copias. Con los informes nos libramos de copiar números; ¿cómo nos libramos de copiar funciones? ¿Cómo se juntan las funciones, sus pruebas y su documentación en algo que se instale con una orden, como dplyr o ggplot2, y que cualquiera pueda usar? Son los **paquetes**, el siguiente capítulo.
+Ya sabemos escribir funciones que avisan cuando algo va mal, probarlas y contar los resultados en un informe que se escribe solo. Pero las funciones siguen viviendo dentro de cada proyecto: si escribimos `nota_final()` para un informe y la queremos usar en otro, la copiamos y la pegamos. Y si un día la corregimos, hay que acordarse de corregir todas las copias. Con los informes nos libramos de copiar números; ¿cómo nos libramos de copiar funciones? ¿Cómo se juntan las funciones, sus pruebas y su documentación en algo que se instale con una orden, como dplyr o ggplot2, y que cualquiera pueda usar? Son los [**paquetes**](26-paquetes.md), el siguiente capítulo.
 
 ## Ejercicios
 
