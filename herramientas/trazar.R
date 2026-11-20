@@ -49,6 +49,8 @@ describe <- function(x, prof = 0) {
     cols <- lapply(names(x), function(n) list(nombre = n, v = describe(h[[n]], prof + 1)))
     out <- list(t = "data.frame", nf = nf, cols = cols, filas = as.list(rownames(x)[seq_len(m)]))
     if (inherits(x, "tbl_df")) out$tibble <- TRUE
+    g <- attr(x, "groups")                    # una tabla agrupada (group_by): por qué columnas y cuántos grupos
+    if (inherits(x, "grouped_df") && is.data.frame(g)) { out$grupos <- as.list(setdiff(names(g), ".rows")); out$ngrupos <- nrow(g) }
     return(out)
   }
   if (is.list(x) && !is.data.frame(x) && is.null(attr(x, "class", exact = TRUE)) && prof < 4 && length(x) <= 30) {

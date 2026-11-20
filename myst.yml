@@ -35,6 +35,7 @@ project:
     - title: Parte III · Análisis de datos
       children:
         - file: capitulos/12-leer-datos.md
+        - file: capitulos/13-dplyr.md
 site:
   template: book-theme
   options:

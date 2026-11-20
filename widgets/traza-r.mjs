@@ -107,6 +107,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz table.df td.cambia{ background:var(--suave); color:var(--acento); font-weight:700; }
 .tz table.df tr.foco th, .tz table.df tr.foco td{ background:var(--suave); }
 .tz table.df tr.foco th{ color:var(--acento); font-weight:700; box-shadow:inset 4px 0 0 var(--acento); }
+.tz .grupos{ font:600 10px/1 var(--titulo); letter-spacing:.06em; text-transform:uppercase; color:#fff; background:var(--acento); border-radius:3px; padding:3px 6px; }
 .tz .tuberia{ border:2px solid var(--tinta); background:#fff; padding:10px; display:flex; flex-direction:column; gap:8px; }
 .tz .tub-cab{ font:600 10px/1 var(--titulo); letter-spacing:.1em; text-transform:uppercase; color:var(--banda); }
 .tz .tub-etapas{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font:500 12.5px/1.3 var(--mono); }
@@ -371,7 +372,8 @@ function dibujaTraza(el, C, D) {
   // Cabecera de un valor: su tipo y su tamaño
   const TIPOS = { double: "numeric", integer: "integer", character: "character", logical: "logical", complex: "complex" };
   function cabecera(v) {
-    if (v.cols) return '<span class="tipo">' + (v.tibble ? "tibble" : "data.frame") + '</span><span class="lon">' + v.nf + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>";
+    if (v.cols) return '<span class="tipo">' + (v.tibble ? "tibble" : "data.frame") + '</span><span class="lon">' + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>" +
+      (v.grupos ? '<span class="grupos">agrupada por ' + esc(v.grupos.join(", ")) + " · " + v.ngrupos + (v.ngrupos === 1 ? " grupo" : " grupos") + "</span>" : "");
     if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const UNID = { days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" };
@@ -460,7 +462,8 @@ function dibujaTraza(el, C, D) {
   // Lo que es un valor, en pocas palabras (para la narración de las tuberías)
   function resumen(v) {
     if (!v) return "algo";
-    if (v.cols) return "una tabla de " + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " y " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas");
+    if (v.cols) return "una tabla de " + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " y " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") +
+      (v.grupos ? ", agrupada por " + v.grupos.map(code).join(" y ") + " (" + v.ngrupos + (v.ngrupos === 1 ? " grupo" : " grupos") + "): las filas no cambian, pero desde aquí cada verbo trabaja grupo a grupo" : "");
     if (v.t === "ggplot") return "un gráfico";
     if (v.d) return "una matriz de " + v.d.join(" × ");
     if (v.el) return "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos");
@@ -477,7 +480,7 @@ function dibujaTraza(el, C, D) {
     let html = '<div class="tuberia"><span class="tub-cab">' + (p.tipo === "capa" ? "Gráfico por capas · capa " : "Tubería · etapa ") + p.etapa + " de " + p.total + '</span><div class="tub-etapas">' +
       textos.map((t, j) => '<span class="et' + (j < p.etapa ? " hecha" : j === p.etapa ? " ahora" : "") + '">' + esc(t) + "</span>").join('<span class="flecha-t">' + sep + "</span>") + "</div>";
     if (p.tipo === "capa") html += '<div class="grafico"><img alt="El gráfico después de esta capa" src="' + img(p.imagen) + '"></div>';
-    else html += '<span class="tub-sale">Lo que sale de esta etapa</span>' + valor(p.valor, null);
+    else html += '<span class="tub-sale">Lo que sale de esta etapa</span>' + (p.valor && (p.valor.cols || p.valor.d) ? '<div class="vec-cab">' + cabecera(p.valor) + "</div>" : "") + valor(p.valor, null);
     return html + "</div>";
   }
 

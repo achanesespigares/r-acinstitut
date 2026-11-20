@@ -170,7 +170,7 @@ Los tres leen el CSV en una tabla de columnas con su tipo. Lo que cambia es el n
 
 ## La grieta
 
-Ya tenemos los datos dentro de R. Ahora vienen las preguntas: ¿cuál es la masa media de cada especie, separando machos y hembras, de mayor a menor? Con lo que sabemos se puede responder mezclando `subset()`, `tapply()` y `order()`, pero cada pregunta exige una receta distinta. Hace falta un pequeño vocabulario de verbos para tablas que encajen en una tubería: filtrar, ordenar, crear columnas, agrupar y resumir. Eso es **dplyr**.
+Ya tenemos los datos dentro de R. Ahora vienen las preguntas: ¿cuál es la masa media de cada especie, separando machos y hembras, de mayor a menor? Con lo que sabemos se puede responder mezclando `subset()`, `tapply()` y `order()`, pero cada pregunta exige una receta distinta. Hace falta un pequeño vocabulario de verbos para tablas que encajen en una tubería: filtrar, ordenar, crear columnas, agrupar y resumir. Eso es [**dplyr**](13-dplyr.md).
 
 ## Ejercicios
 
