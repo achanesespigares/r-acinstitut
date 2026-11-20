@@ -51,8 +51,28 @@ num_referencia <- function(x) {
   length(REFERENCIAS$vistos)
 }
 
+# Una expresión como árbol: una llamada es su función y sus argumentos; un símbolo, un nombre; lo demás, constantes
+arbol <- function(e, prof = 0) {
+  if (prof > 8) return(list(k = "c", x = "…"))
+  if (is.call(e)) {
+    hijos <- as.list(e)[-1]
+    nh <- names(hijos)
+    return(list(k = "f", x = paste(deparse(e[[1]], width.cutoff = 60L), collapse = ""),
+                h = lapply(seq_along(hijos), function(i) {
+                  a <- if (identical(hijos[[i]], quote(expr = ))) list(k = "c", x = "") else arbol(hijos[[i]], prof + 1)
+                  if (!is.null(nh) && nzchar(nh[i])) a$n <- nh[i]
+                  a
+                })))
+  }
+  if (is.symbol(e)) return(list(k = "s", x = as.character(e)))
+  list(k = "c", x = paste(deparse(e), collapse = ""))
+}
+
 describe <- function(x, prof = 0) {
   if (is.function(x)) return(list(t = "function", r = firma(x)))
+  if (inherits(x, "formula")) return(list(t = "formula", r = paste(deparse(unclass(x)[1:length(x)], width.cutoff = 60L), collapse = "")))
+  if (is.language(x) && !inherits(x, "formula"))   # código guardado: una llamada (call) o un símbolo (name)
+    return(list(t = class(x)[1], r = paste(deparse(x, width.cutoff = 60L), collapse = "\n"), arbol = arbol(x)))
   if (inherits(x, "R6ClassGenerator"))       # el molde de una clase R6: su nombre, sus campos y sus métodos
     return(list(t = "R6ClassGenerator", r = paste0("clase ", x$classname,
       "\ncampos: ", paste(names(x$public_fields), collapse = ", "),
@@ -127,6 +147,7 @@ firma <- function(f) paste0("function(", paste(names(formals(if (is.primitive(f)
 
 corto <- function(x) {                       # para la tabla de traza
   if (is.null(x)) return("NULL")
+  if (inherits(x, "formula")) return(paste(deparse(unclass(x)[1:length(x)]), collapse = ""))
   if (is.function(x)) return(firma(x))
   if (is.data.frame(x)) return(paste0("una tabla de ", nrow(x), " filas"))
   if (!is.null(attr(x, "class", exact = TRUE)) && !inherits(x, CLASES_CONOCIDAS)) return(paste0("un objeto de clase ", class(x)[1]))
@@ -299,13 +320,31 @@ traza <- function(codigo, config) {
     nm <- environmentName(e)
     if (nzchar(nm)) nm else "otro entorno"
   }
-  lee <- function(n, donde) tryCatch({
+  # Las promesas que no se pudieron evaluar (por ejemplo, una condición sobre columnas): no se vuelven a
+  # intentar, porque R avisaría «restarting interrupted promise evaluation» y, además, no es asunto nuestro
+  fallidas <- list()
+  como_promesa <- function(n, donde) {
+    ex <- tryCatch(eval(call("substitute", as.name(n)), donde), error = function(e2) NULL)
+    if (!is.null(ex) && !identical(ex, as.name(n)))
+      list(t = "promesa", r = paste(deparse(ex, width.cutoff = 60L), collapse = "\n"), arbol = arbol(ex))
+    else list(t = "sin valor", r = "(todavía sin valor)")
+  }
+  lee <- function(n, donde) {
+    for (f in fallidas) if (f$n == n && identical(f$env, donde)) return(como_promesa(n, donde))
+    lee2(n, donde)
+  }
+  lee2 <- function(n, donde) tryCatch({
       x <- get(n, envir = donde)
       d <- describe(x)
       # una función que no se creó en el programa principal recuerda el entorno donde nació
       if (is.function(x) && !is.primitive(x) && !identical(environment(x), env)) d$ent <- nombre_entorno(environment(x))
       d
-    }, error = function(err) list(t = "sin valor", r = "(todavía sin valor)"))
+    }, error = function(err) {
+      # una promesa que no se puede evaluar: el código del argumento, que la función no ha evaluado
+      d <- como_promesa(n, donde)
+      if (d$t == "promesa") fallidas[[length(fallidas) + 1]] <<- list(n = n, env = donde)
+      d
+    })
   foto <- function() {
     nombres <- setdiff(ls(env), ocultar)
     orden <<- c(orden, setdiff(nombres, orden))
@@ -451,7 +490,11 @@ traza <- function(codigo, config) {
   ayudas$.entra <- function(nombre, l) {
     marco <- parent.frame()
     args <- setdiff(names(formals(sys.function(sys.parent()))), "...")
-    vals <- vapply(args, function(a) tryCatch(corto(get(a, envir = marco)), error = function(err) "?"), "")
+    # un argumento que no se puede evaluar (una condición sobre columnas, por ejemplo) se enseña como código
+    vals <- vapply(args, function(a) tryCatch(corto(get(a, envir = marco)), error = function(err) {
+      fallidas[[length(fallidas) + 1]] <<- list(n = a, env = marco)
+      tryCatch(paste(deparse(eval(call("substitute", as.name(a)), marco)), collapse = " "), error = function(e2) "?")
+    }), "")
     nmarcos <<- nmarcos + 1
     llamada <- paste0(nombre, "(", paste(if (length(args)) paste(args, "=", vals) else character(0), collapse = ", "), ")")
     pila[[length(pila) + 1]] <<- list(id = nmarcos, nombre = nombre, env = marco, orden = args, desde = actual,

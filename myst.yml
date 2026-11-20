@@ -46,6 +46,7 @@ project:
         - file: capitulos/19-entornos.md
         - file: capitulos/20-programacion-funcional.md
         - file: capitulos/21-objetos.md
+        - file: capitulos/22-metaprogramacion.md
 site:
   template: book-theme
   options:

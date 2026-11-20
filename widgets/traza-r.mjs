@@ -47,6 +47,12 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .marco-padre b{ font:600 12px/1.35 var(--mono); color:var(--tinta); }
 .tz .cierre{ border:1.5px dashed var(--filete); padding:6px 8px 8px; display:flex; flex-direction:column; gap:8px; }
 .tz .cierre .que{ font:600 9.5px/1.3 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
+.tz .arbol{ background:var(--fondo); padding:8px 12px; font:500 14px/1.55 var(--mono); overflow-x:auto; }
+.tz .arama{ white-space:pre; color:var(--banda); }
+.tz .arbol .af{ color:var(--acento); font-weight:700; }
+.tz .arbol .as{ color:var(--tinta); font-weight:600; }
+.tz .arbol .ac{ color:#2D5A48; }
+.tz .arbol .anom{ color:var(--banda); font-style:italic; }
 .tz span.tipo.clase{ background:var(--acento); color:#fff; border-color:var(--acento); text-transform:none; letter-spacing:0; font-family:var(--mono); }
 .tz .cierre .que b{ font:600 11.5px/1.3 var(--mono); letter-spacing:0; text-transform:none; color:var(--tinta); }
 .tz .otro .ent{ display:block; margin-top:4px; font:italic 500 12px/1.3 var(--texto); color:var(--banda); }
@@ -235,6 +241,9 @@ function dibujaTraza(el, C, D) {
     lm: "un modelo lineal (" + code("lm") + "). Por dentro es una lista con los coeficientes, los valores ajustados, los residuos y más; al imprimirlo, R enseña la fórmula y los coeficientes",
     htest: "el resultado de una prueba estadística (" + code("htest") + "), con su valor p y su intervalo de confianza",
     table: "una tabla de frecuencias (" + code("table") + ")",
+    call: "código guardado sin ejecutar: una llamada (" + code("call") + "). Se dibuja como un árbol, con la función arriba y sus argumentos colgando",
+    promesa: "una promesa: el código que se pasó como argumento, que R todavía no ha evaluado. R solo evalúa un argumento cuando la función lo usa; esta lo captura como código y no lo evalúa nunca",
+    name: "un símbolo (" + code("name") + "): un nombre guardado como tal, sin buscar su valor",
     R6ClassGenerator: "el generador de una clase R6: el molde. Cada llamada a su " + code("$new()") + " fabrica un objeto nuevo",
     function: "una función: guarda sus instrucciones, que no se ejecutan hasta que alguien la llame",
   };
@@ -414,7 +423,7 @@ function dibujaTraza(el, C, D) {
         if (camb.length === 1 && b.v.length > 1) frases.push("Cambia " + code(n + "[" + pos(camb[0]) + "]") + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
         else if (b.v.length === 1) frases.push(code(n) + " valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + ".");
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
-      } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + " elementos." : "."));
+      } else frases.push(code(n) + " cambia" + (b.arbol ? ": ahora guarda el código " + code(b.r) + "." : b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + " elementos." : "."));
     }
     if (mp && mp.pvars && ma && ma.id === mp.id && ma.pvars) {   // cambia el entorno que recuerda una clausura (<<-)
       for (const n of Object.keys(mp.pvars)) {
@@ -478,6 +487,15 @@ function dibujaTraza(el, C, D) {
 
   // Cabecera de un valor: su tipo y su tamaño
   const TIPOS = { double: "numeric", integer: "integer", character: "character", logical: "logical", complex: "complex" };
+  // Un árbol de código, como lo dibuja lobstr::ast(): la función arriba y sus argumentos colgando
+  function dibujaArbol(n, pref, ultimo, raiz) {
+    const et = (n.n ? '<span class="anom">' + esc(n.n) + " = </span>" : "") +
+      (n.k === "f" ? '<span class="af">' + esc(n.x) + "</span>" : n.k === "s" ? '<span class="as">' + esc(n.x) + "</span>" : '<span class="ac">' + esc(n.x || "(vacío)") + "</span>");
+    let html = '<div class="arama">' + esc(raiz ? "" : pref + (ultimo ? "└─ " : "├─ ")) + et + "</div>";
+    const h = n.h || [], p2 = raiz ? "" : pref + (ultimo ? "   " : "│  ");
+    h.forEach((c, i) => { html += dibujaArbol(c, p2, i === h.length - 1, false); });
+    return html;
+  }
   function cabecera(v) {
     if (v.cols) return '<span class="tipo">' + (v.tibble ? "tibble" : "data.frame") + '</span><span class="lon">' + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>" +
       (v.grupos ? '<span class="grupos">agrupada por ' + esc(v.grupos.join(", ")) + " · " + v.ngrupos + (v.ngrupos === 1 ? " grupo" : " grupos") + "</span>" : "");
@@ -511,6 +529,7 @@ function dibujaTraza(el, C, D) {
         v.niveles.map((l, j) => '<span class="nv"><b>' + (j + 1) + "</b>" + esc(l) + "</span>").join(v.ord ? '<span class="menor">&lt;</span>' : "") + "</div>";
       return html;
     }
+    if (v.arbol) return '<div class="arbol">' + dibujaArbol(v.arbol, "", true, true) + "</div>";
     return '<div class="otro">' + esc(v.r || v.t) + (v.ent ? '<span class="ent">recuerda el entorno de ' + esc(v.ent) + "</span>" : "") + "</div>";
   }
 

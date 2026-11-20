@@ -253,7 +253,7 @@ En Python, los métodos pertenecen a la **clase**: se escriben dentro de ella y 
 
 ## La grieta
 
-Hay un objeto que imprime algo sorprendente. Al mostrar un modelo, la primera línea es `Call:` y debajo aparece el código que escribimos, `lm(formula = masa_corporal_g ~ largo_aleta_mm, data = pinguinos)`. El modelo recuerda el código, no solo los números. Y en el capítulo 19 quedó pendiente cómo `filter()` recibe `masa_corporal_g > umbral` sin que R intente calcularlo antes. ¿Cómo puede una función quedarse con el código que le pasan, en lugar de con su valor? ¿Se puede guardar código en una variable, mirarlo por dentro y cambiarlo antes de ejecutarlo? Escribir código que trabaja con código es la **metaprogramación**.
+Hay un objeto que imprime algo sorprendente. Al mostrar un modelo, la primera línea es `Call:` y debajo aparece el código que escribimos, `lm(formula = masa_corporal_g ~ largo_aleta_mm, data = pinguinos)`. El modelo recuerda el código, no solo los números. Y en el capítulo 19 quedó pendiente cómo `filter()` recibe `masa_corporal_g > umbral` sin que R intente calcularlo antes. ¿Cómo puede una función quedarse con el código que le pasan, en lugar de con su valor? ¿Se puede guardar código en una variable, mirarlo por dentro y cambiarlo antes de ejecutarlo? Escribir código que trabaja con código es la [**metaprogramación**](22-metaprogramacion.md).
 
 ## Ejercicios
 
