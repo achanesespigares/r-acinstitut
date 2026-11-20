@@ -312,8 +312,11 @@ procesa <- function(fichero) {
   for (i in seq_along(lineas)) {
     if (!grepl("^```\\{anywidget\\} .*traza-r\\.mjs", lineas[i])) next
     datos <- fromJSON(lineas[i + 1], simplifyVector = FALSE)
+    if (identical(datos$config$tipo, "laboratorio")) next      # el laboratorio no lleva traza: la hace el navegador
     # la celda de código que precede a la directiva
-    fin <- max(which(seq_along(lineas) < i & lineas == "```"))
+    fins <- which(seq_along(lineas) < i & lineas == "```")
+    if (!length(fins)) { warning(fichero, ": un visualizador sin celda de código delante"); next }
+    fin <- max(fins)
     ini <- max(which(seq_along(lineas) < fin & grepl("^```\\{code-cell\\} r", lineas)))
     codigo <- paste(lineas[(ini + 1):(fin - 1)], collapse = "\n")
     datos$traza <- traza(codigo, datos$config)
