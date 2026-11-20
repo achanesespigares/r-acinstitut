@@ -39,7 +39,7 @@ un_valor <- function(e) {
 }
 
 describe <- function(x, prof = 0) {
-  if (is.function(x)) return(list(t = "function"))
+  if (is.function(x)) return(list(t = "function", r = paste0("function(", paste(names(formals(x)), collapse = ", "), ")")))
   if (inherits(x, "ggplot")) return(list(t = "ggplot"))   # un gráfico: se dibuja aparte, como imagen
   if (is.data.frame(x) && ncol(x) <= 15) {
     # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las
@@ -97,6 +97,7 @@ describe <- function(x, prof = 0) {
 }
 
 corto <- function(x) {                       # para la tabla de traza
+  if (is.function(x)) return(paste0("function(", paste(names(formals(x)), collapse = ", "), ")"))
   if (is.atomic(x) && is.null(dim(x)) && length(x) <= 12) {
     v <- vapply(x, un_valor, "", USE.NAMES = FALSE)
     return(if (length(v) == 1) v else paste(v, collapse = " "))
@@ -239,8 +240,21 @@ traza <- function(codigo, config) {
   pila <- list()                             # las llamadas en curso: un marco por llamada
   nmarcos <- 0
   aqui <- function() if (length(pila)) pila[[length(pila)]]$env else env
-  lee <- function(n, donde) tryCatch(describe(get(n, envir = donde)),
-                                     error = function(err) list(t = "sin valor", r = "(todavía sin valor)"))
+  # Los entornos de todas las llamadas que ha habido, para poder nombrar el entorno de una clausura
+  entornos <- list()
+  nombre_entorno <- function(e) {
+    if (identical(e, env)) return("Programa principal")
+    for (r in entornos) if (identical(e, r$env)) return(r$llamada)
+    nm <- environmentName(e)
+    if (nzchar(nm)) nm else "otro entorno"
+  }
+  lee <- function(n, donde) tryCatch({
+      x <- get(n, envir = donde)
+      d <- describe(x)
+      # una función que no se creó en el programa principal recuerda el entorno donde nació
+      if (is.function(x) && !is.primitive(x) && !identical(environment(x), env)) d$ent <- nombre_entorno(environment(x))
+      d
+    }, error = function(err) list(t = "sin valor", r = "(todavía sin valor)"))
   foto <- function() {
     nombres <- setdiff(ls(env), ocultar)
     orden <<- c(orden, setdiff(nombres, orden))
@@ -256,7 +270,14 @@ traza <- function(codigo, config) {
     nombres <- intersect(pila[[k]]$orden, nombres)
     vars <- lapply(nombres, lee, donde = m$env)
     names(vars) <- nombres
-    list(id = m$id, nombre = m$nombre, llamada = m$llamada, desde = m$desde, vars = vars)
+    out <- list(id = m$id, nombre = m$nombre, llamada = m$llamada, desde = m$desde, vars = vars, padre = nombre_entorno(m$padre))
+    # si el padre es el entorno de una llamada que ya terminó (una clausura), se enseñan sus variables
+    activos <- vapply(pila, function(q) identical(q$env, m$padre), NA)
+    if (!identical(m$padre, env) && !any(activos) && any(vapply(entornos, function(r) identical(r$env, m$padre), NA))) {
+      pn <- ls(m$padre); pv <- lapply(pn, lee, donde = m$padre); names(pv) <- pn
+      out$pvars <- pv
+    }
+    out
   })
   anota <- function(paso) {
     if (length(pasos) >= LIMITE && paso$tipo != "error") stop("el programa da demasiados pasos (más de ", LIMITE, ")")
@@ -378,8 +399,10 @@ traza <- function(codigo, config) {
     args <- names(formals(sys.function(sys.parent())))
     vals <- vapply(args, function(a) tryCatch(corto(get(a, envir = marco)), error = function(err) "?"), "")
     nmarcos <<- nmarcos + 1
+    llamada <- paste0(nombre, "(", paste(if (length(args)) paste(args, "=", vals) else character(0), collapse = ", "), ")")
     pila[[length(pila) + 1]] <<- list(id = nmarcos, nombre = nombre, env = marco, orden = args, desde = actual,
-      llamada = paste0(nombre, "(", paste(if (length(args)) paste(args, "=", vals) else character(0), collapse = ", "), ")"))
+      llamada = llamada, padre = environment(sys.function(sys.parent())))
+    entornos[[length(entornos) + 1]] <<- list(env = marco, llamada = llamada)
     anota(list(linea = l, tipo = "llamada", funcion = nombre))
   }
   ayudas$.sale <- function() {

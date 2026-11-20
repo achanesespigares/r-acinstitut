@@ -224,7 +224,7 @@ Los tres usan la misma fórmula, que nació en S y R y han copiado los demás: e
 
 ## La grieta
 
-Con este capítulo se cierra la parte III: leer datos, transformarlos, dibujarlos y modelarlos. Pero hay algo que llevamos tiempo usando sin preguntarnos cómo funciona. En `lm(masa_corporal_g ~ largo_aleta_mm, data = pinguinos)`, en `aes(x = largo_aleta_mm)` o en `filter(especie == "Adelia")`, escribimos nombres de columnas sin comillas, como si fueran variables. Pero `largo_aleta_mm` no es ninguna variable del programa: si la escribes sola, R dice `objeto 'largo_aleta_mm' no encontrado`. ¿Cómo la encuentran entonces esas funciones? ¿Dónde busca R los nombres? La respuesta son los **entornos**, y con ellos empieza la parte IV, R por dentro.
+Con este capítulo se cierra la parte III: leer datos, transformarlos, dibujarlos y modelarlos. Pero hay algo que llevamos tiempo usando sin preguntarnos cómo funciona. En `lm(masa_corporal_g ~ largo_aleta_mm, data = pinguinos)`, en `aes(x = largo_aleta_mm)` o en `filter(especie == "Adelia")`, escribimos nombres de columnas sin comillas, como si fueran variables. Pero `largo_aleta_mm` no es ninguna variable del programa: si la escribes sola, R dice `objeto 'largo_aleta_mm' no encontrado`. ¿Cómo la encuentran entonces esas funciones? ¿Dónde busca R los nombres? La respuesta son los [**entornos**](19-entornos.md), y con ellos empieza la parte IV, R por dentro.
 
 ## Ejercicios
 

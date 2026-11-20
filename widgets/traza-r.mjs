@@ -43,6 +43,12 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .marco-cab{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; font:600 13.5px/1.3 var(--mono); }
 .tz .marco-cab .que{ font:600 9.5px/1 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
 .tz .marco.activo .marco-cab .que{ color:var(--acento); }
+.tz .marco-padre{ font:500 12px/1.35 var(--texto); color:var(--banda); margin-top:-4px; }
+.tz .marco-padre b{ font:600 12px/1.35 var(--mono); color:var(--tinta); }
+.tz .cierre{ border:1.5px dashed var(--filete); padding:6px 8px 8px; display:flex; flex-direction:column; gap:8px; }
+.tz .cierre .que{ font:600 9.5px/1.3 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
+.tz .cierre .que b{ font:600 11.5px/1.3 var(--mono); letter-spacing:0; text-transform:none; color:var(--tinta); }
+.tz .otro .ent{ display:block; margin-top:4px; font:italic 500 12px/1.3 var(--texto); color:var(--banda); }
 .tz .devuelve{ align-self:flex-start; font:600 13.5px/1 var(--mono); color:#fff; background:var(--acento); border-radius:5px; padding:6px 9px; }
 .tz .kw{ color:var(--acento); font-weight:600; } .tz .str{ color:#4A5A2A; } .tz .num{ color:#1E4A6B; } .tz .com{ color:var(--filete); font-style:italic; }
 .tz-narr{ min-height:4.4em; padding:10px 12px; background:var(--suave); border-left:4px solid var(--acento); }
@@ -230,6 +236,21 @@ function dibujaTraza(el, C, D) {
     table: "una tabla de frecuencias (" + code("table") + ")",
     function: "una función: guarda sus instrucciones, que no se ejecutan hasta que alguien la llame",
   };
+  // Dentro de una llamada, ¿qué nombres de la línea no están en el marco y R encuentra más arriba?
+  function buscaFuera(p) {
+    const M = p.marcos || []; if (!M.length) return "";
+    const m = M[M.length - 1], txt = (L[p.linea - 1] || "").replace(/"[^"]*"|'[^']*'|#.*$/g, "");
+    if (/<<-|\bfunction\b/.test(txt)) return "";
+    const nombres = [...new Set([...txt.matchAll(/([A-Za-z.][\w.]*)(\s*\()?/g)].filter(x => !x[2] && !/\$\s*$/.test(txt.slice(0, x.index))).map(x => x[1]))].filter(n => !m.vars[n]);
+    const fuera = [];
+    for (const n of nombres) {
+      const v = m.pvars && m.pvars[n] ? m.pvars[n] : m.padre === "Programa principal" ? p.estado[n] : null;
+      if (v && !(v.t === "function")) fuera.push(code(n) + (v.v && v.v.length === 1 ? ", que vale " + esc(v.v[0]) : ""));
+    }
+    if (!fuera.length) return "";
+    return " " + (fuera.length === 1 ? "R necesita " + fuera[0] + ": no está en el marco de la llamada, así que la busca en su entorno padre, " : "R necesita " + fuera.join(" y ") + ": no están en el marco de la llamada, así que los busca en su entorno padre, ") +
+      (m.padre === "Programa principal" ? "el programa principal, y allí la encuentra." : "el de " + code(m.padre) + ", y allí la encuentra.").replace("la encuentra", fuera.length === 1 ? "la encuentra" : "los encuentra");
+  }
   const vec = (p, n) => p.estado[n];
   const longitud = v => v && v.v ? (v.nv || v.v.length) : 0;
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -268,10 +289,16 @@ function dibujaTraza(el, C, D) {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
       return "Se llama a " + code(m.llamada) + ". R le da a la función un espacio propio en la memoria" +
         (args.length ? ", con sus argumentos: " + args.map(a => code(a) + " vale " + esc(muestra(m.vars[a]))).join(", ") : "") +
-        ". El programa salta a la función" + (m.desde ? " y la línea " + m.desde + " se queda esperando el resultado." : ".");
+        ". El programa salta a la función" + (m.desde ? " y la línea " + m.desde + " se queda esperando el resultado." : ".") +
+        (m.padre ? " Si la función usa un nombre que no está en su espacio, R lo busca en su entorno padre: " +
+          (m.padre === "Programa principal" ? "el programa principal, donde se definió la función." :
+           m.pvars ? "el de " + code(m.padre) + ", la llamada donde nació la función. Esa llamada ya terminó, pero su entorno sigue vivo porque la función lo recuerda." :
+           "el de " + code(m.padre) + ", la llamada donde se definió la función.") : "");
     }
     if (p.tipo === "devuelve")
-      return code(p.funcion) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
+      return /^function\(/.test(p.valor)
+        ? code(p.funcion) + " termina y devuelve una función, " + code(p.valor) + ". Esta vez su espacio en la memoria no desaparece: la función que devuelve nació ahí dentro y lo recuerda, con sus variables. El programa vuelve a la línea " + p.desde + "."
+        : buscaFuera(p).trim() + (buscaFuera(p) ? " " : "") + code(p.funcion) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +
@@ -345,7 +372,7 @@ function dibujaTraza(el, C, D) {
       }
       if (!a && b.u) { frases.push("Se crea " + code(n) + ", una diferencia de tiempos (" + code("difftime") + ") medida " + ({ days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" }[b.u] || "en " + b.u) + "."); continue; }
       if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : longitud(b) + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
-      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : OTROS[b.t] ? ", " + OTROS[b.t] : ", de tipo " + code(b.t)) + "."); continue; }
+      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : OTROS[b.t] ? ", " + OTROS[b.t] + (b.ent ? ". Además, recuerda el entorno donde nació, el de " + code(b.ent) : "") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length && !a.nv && !b.nv) {
         const camb = b.v.map((x, i) => x !== a.v[i] ? i : -1).filter(i => i >= 0);
@@ -356,6 +383,27 @@ function dibujaTraza(el, C, D) {
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
       } else frases.push(code(n) + " cambia" + (b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + " elementos." : "."));
     }
+    if (mp && mp.pvars && ma && ma.id === mp.id && ma.pvars) {   // cambia el entorno que recuerda una clausura (<<-)
+      for (const n of Object.keys(mp.pvars)) {
+        const a = ma.pvars[n], b = mp.pvars[n];
+        if (a && igual(a, b)) continue;
+        frases.push((a && a.v && b.v && a.v.length === 1 && b.v.length === 1
+          ? "Cambia " + code(n) + " en el entorno de " + code(mp.padre) + ": valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + "."
+          : "Cambia " + code(n) + " en el entorno de " + code(mp.padre) + ".") +
+          (/<<-/.test(L[p.linea - 1] || "") ? " La flecha doble " + code("<<-") + " no crea una variable local: busca " + code(n) + " en los entornos padre y la cambia allí, donde sigue guardada para la próxima llamada." : ""));
+      }
+    }
+    if (mp && prev && prev.estado) {          // dentro de una llamada, cambia algo del programa principal (<<-)
+      for (const n of Object.keys(p.estado)) {
+        const a = prev.estado[n], b = p.estado[n];
+        if (a && igual(a, b)) continue;
+        const flecha = /<<-/.test(L[p.linea - 1] || "") ? " La flecha doble " + code("<<-") + " no crea una variable local: busca " + code(n) + " en los entornos padre y la cambia allí." : "";
+        frases.push(a && a.v && b.v && a.v.length === 1 && b.v.length === 1
+          ? "Cambia " + code(n) + " en el programa principal: valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + "." + flecha
+          : (a ? "Cambia " : "Se crea ") + code(n) + " en el programa principal." + flecha);
+      }
+    }
+    { const f = buscaFuera(p); if (f) frases.push(f.trim()); }
     if (p.salida.length > prev.salida.length) {
       const nueva = p.salida.slice(prev.salida.length).trim().split("\n");
       const linea = (L[p.linea - 1] || "").trim();
@@ -420,7 +468,7 @@ function dibujaTraza(el, C, D) {
         v.niveles.map((l, j) => '<span class="nv"><b>' + (j + 1) + "</b>" + esc(l) + "</span>").join(v.ord ? '<span class="menor">&lt;</span>' : "") + "</div>";
       return html;
     }
-    return '<div class="otro">' + esc(v.r || v.t) + "</div>";
+    return '<div class="otro">' + esc(v.r || v.t) + (v.ent ? '<span class="ent">recuerda el entorno de ' + esc(v.ent) + "</span>" : "") + "</div>";
   }
 
   // Una matriz: rejilla con los nombres (o los índices) de filas y columnas. R guarda los valores por
@@ -564,7 +612,10 @@ function dibujaTraza(el, C, D) {
       const activo = i === M.length - 1;
       html += '<div class="marco' + (activo ? " activo" : "") + '"><div class="marco-cab"><span>' + esc(m.llamada) + '</span><span class="que">' +
         (activo ? "llamada en curso" : "esperando a " + esc(M[i + 1].nombre)) + "</span></div>" +
+        (m.padre ? '<div class="marco-padre">entorno padre: <b>' + esc(m.padre) + "</b></div>" : "") +
         (Object.keys(m.vars).length ? variables(m.vars, antes[m.id], false) : '<p class="tz-vacio">Sin variables.</p>') +
+        (m.pvars ? '<div class="cierre"><span class="que">entorno padre · <b>' + esc(m.padre) + "</b> · la llamada ya terminó, pero " + esc(m.nombre) + " lo recuerda</span>" +
+          variables(m.pvars, prev && prev.marcos && prev.marcos.length && prev.marcos[prev.marcos.length - 1].id === m.id ? prev.marcos[prev.marcos.length - 1].pvars : null, false) + "</div>" : "") +
         (activo && p.tipo === "devuelve" ? '<span class="devuelve">devuelve ' + esc(p.valor) + "</span>" : "") + "</div>";
     });
     if (p.avisos) html += '<div class="tz-aviso"><b>Aviso de R</b><br>' + p.avisos.map(esc).join("<br>") + "</div>";

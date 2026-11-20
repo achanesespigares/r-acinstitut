@@ -41,6 +41,9 @@ project:
         - file: capitulos/16-distribuciones.md
         - file: capitulos/17-simulacion.md
         - file: capitulos/18-modelos.md
+    - title: Parte IV · R por dentro
+      children:
+        - file: capitulos/19-entornos.md
 site:
   template: book-theme
   options:
