@@ -92,10 +92,19 @@ reescribe <- function(e, linea, nivel) {
     if (f == "if") {
       e[[2]] <- call(".cond", linea, e[[2]], deparse1(e[[2]]))
       e[[3]] <- cuerpo(e[[3]], linea, nivel + 1)
-      if (length(e) == 4) e[[4]] <- cuerpo(e[[4]], linea, nivel + 1)
+      if (length(e) == 4) {
+        otro <- e[[4]]
+        if (is.call(otro) && identical(otro[[1]], as.name("if"))) {
+          # else if: su línea es la de la llave que abre su bloque (} else if (...) {)
+          r <- attr(otro[[3]], "srcref")
+          l2 <- if (!is.null(r)) r[[1]][1] else linea
+          e[[4]] <- reescribe(otro, l2, nivel + 1)
+        } else e[[4]] <- cuerpo(otro, linea, nivel + 1)
+      }
       return(call("{", call(".va", linea), e))
     }
     if (f == "{") return(cuerpo(e, linea, nivel))
+    if (f %in% c("break", "next")) return(call("{", call(".va", linea), call(".paso", linea), e))   # se fotografía antes de saltar
   }
   if (nivel == 0) return(call("{", call(".va", linea), call(".muestra", e), call(".paso", linea)))
   call("{", call(".va", linea), e, call(".paso", linea))

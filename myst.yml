@@ -22,6 +22,7 @@ project:
         - file: capitulos/01-calculadora.md
         - file: capitulos/02-vectores.md
         - file: capitulos/03-indices-filtros.md
+        - file: capitulos/04-decidir-repetir.md
 site:
   template: book-theme
   options:

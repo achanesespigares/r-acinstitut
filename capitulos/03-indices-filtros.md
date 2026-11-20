@@ -164,7 +164,7 @@ R y Julia cuentan desde 1, como contamos las personas. Python cuenta desde 0: su
 
 ## La grieta
 
-Un filtro elige casillas, pero el programa hace siempre lo mismo con ellas. ¿Y si quieres que el programa tome caminos distintos: escribir «aprobado» o «suspendido» según la nota, o repetir algo hasta que se cumpla una condición? Para eso hace falta **decidir y repetir**.
+Un filtro elige casillas, pero el programa hace siempre lo mismo con ellas. ¿Y si quieres que el programa tome caminos distintos: escribir «aprobado» o «suspendido» según la nota, o repetir algo hasta que se cumpla una condición? Para eso hace falta [**decidir y repetir**](04-decidir-repetir.md).
 
 ## Ejercicios
 

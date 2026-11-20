@@ -143,7 +143,7 @@ function dibujaTraza(el, C, D) {
   q(".tz-etq").textContent = C.etiqueta || "";
   q(".tz-idea").textContent = C.idea || "";
   if (!C.idea) q(".tz-idea").style.display = "none";
-  q(".tz-codigo").innerHTML = L.map((l, i) => '<span class="ln" data-n="' + (i + 1) + '"><span class="fl">▶</span><span class="no">' + (i + 1) + "</span>" + (colorea(l) || " ") + "</span>").join("");
+  q(".tz-codigo").innerHTML = L.map((l, i) => '<span class="ln" data-n="' + (i + 1) + '"><span class="fl">▶</span><span class="no">' + (i + 1) + "</span>" + '<span class="tx">' + (colorea(l) || " ") + "</span></span>").join("");
   if (!cols.length) q(".tz-tabla-bloque").style.display = "none";
   q(".tz-tabla").querySelector("thead").innerHTML = "<tr>" + cols.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr>";
   q(".tz-tabla-sub").textContent = porLinea ? "una fila por línea" : "una fila por vuelta";
@@ -163,8 +163,16 @@ function dibujaTraza(el, C, D) {
       return v ? "Vuelta " + p.vuelta + " del <code>for</code>: " + code(v) + " toma el elemento " + p.vuelta + " de " + code(sec) + ", que vale " + esc(muestra(vec(p, v))) + "."
         : "Vuelta " + p.vuelta + " del bucle.";
     }
-    if (p.tipo === "fin") return p.vuelta ? "El <code>for</code> ya ha recorrido todos los elementos (" + p.vuelta + (p.vuelta === 1 ? " vuelta" : " vueltas") + "): el programa sigue después del bucle."
-      : "El bucle termina: el programa sigue después de él.";
+    if (p.tipo === "fin") {
+      const lp = prev && prev.linea ? (L[prev.linea - 1] || "").trim() : "";
+      if (/^break\b/.test(lp)) return "El <code>break</code> ha cortado el bucle" + (p.vuelta ? " en la vuelta " + p.vuelta : "") + ": las vueltas que quedaban ya no se dan y el programa sigue después del bucle.";
+      if (/^\s*while\b/.test(L[p.linea - 1] || "")) return "La condición del <code>while</code> ya es <code>FALSE</code>: el bucle termina" + (p.vuelta ? " después de " + p.vuelta + (p.vuelta === 1 ? " vuelta" : " vueltas") : "") + " y el programa sigue después de él.";
+      return p.vuelta ? "El <code>for</code> ya ha recorrido todos los elementos (" + p.vuelta + (p.vuelta === 1 ? " vuelta" : " vueltas") + "): el programa sigue después del bucle."
+        : "El bucle termina: el programa sigue después de él.";
+    }
+    { const lt = (L[p.linea - 1] || "").trim();
+      if (/^break\b/.test(lt)) return "Se ejecuta <code>break</code>: R sale del bucle en este mismo momento, sin terminar la vuelta.";
+      if (/^next\b/.test(lt)) return "Se ejecuta <code>next</code>: R deja esta vuelta a medias y salta a la siguiente."; }
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +
