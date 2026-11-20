@@ -30,6 +30,7 @@ project:
         - file: capitulos/07-listas.md
         - file: capitulos/08-matrices.md
         - file: capitulos/09-data-frames.md
+        - file: capitulos/10-cadenas.md
 site:
   template: book-theme
   options:

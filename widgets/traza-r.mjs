@@ -65,7 +65,7 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
   justify-content:center; font:600 16px/1 var(--mono); background:#fff; transition:background .25s; }
 .tz .cas:first-child .v{ margin-left:0; }
 .tz .cas .idx{ font:500 11.5px/1 var(--mono); color:var(--banda); }
-.tz .cas .v{ position:relative; }
+.tz .cas .v{ position:relative; white-space:pre; }   /* los espacios de un texto se ven, como en R */
 .tz .cas .cod{ position:absolute; top:2px; left:3px; font:600 9.5px/1 var(--mono); color:var(--acento); }
 .tz .cas.na .v{ color:var(--banda); font-style:italic; }
 .tz .niveles{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font:500 12.5px/1.2 var(--mono); color:var(--sub); margin-top:2px; }
@@ -524,6 +524,7 @@ const EJEMPLOS = [
   { nombre: "Recursión", codigo: 'factorial <- function(n) {\n  if (n <= 1) {\n    return(1)\n  }\n  n * factorial(n - 1)\n}\nfactorial(4)' },
   { nombre: "Una lista", codigo: 'alumno <- list(nombre = "Marta", notas = c(7, 8.5, 6))\nalumno$notas[2] <- 9\nalumno$grupo <- "1ºB"\nmedia <- mean(alumno$notas)\nstr(alumno)' },
   { nombre: "Una tabla", codigo: 'clase <- data.frame(\n  nombre = c("Marta", "Pau", "Sara"),\n  nota = c(7.2, 4.1, 9.5)\n)\nclase$aprobado <- clase$nota >= 5\nmejores <- clase[order(clase$nota, decreasing = TRUE), ]\nmean(clase$nota)' },
+  { nombre: "Limpiar textos", codigo: 'nombres <- c("marta", "MARTA ", " Pau")\nx <- trimws(nombres)\nlimpios <- paste0(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))))\nunique(limpios)' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `

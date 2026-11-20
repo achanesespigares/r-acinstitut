@@ -147,7 +147,7 @@ R trae el data frame de serie, desde sus orígenes en la estadística. Python lo
 
 ## La grieta
 
-En una tabla real, la columna de los nombres casi nunca está limpia: `"marta"`, `"MARTA"` y `"Marta "` (con un espacio al final) son la misma persona, pero `==` dice que no. Y a veces hace falta algo más que comparar: los alumnos cuyo nombre empieza por M, o el apellido que va detrás de la coma. Para eso hay que saber trabajar con el texto por dentro: las **cadenas**.
+En una tabla real, la columna de los nombres casi nunca está limpia: `"marta"`, `"MARTA"` y `"Marta "` (con un espacio al final) son la misma persona, pero `==` dice que no. Y a veces hace falta algo más que comparar: los alumnos cuyo nombre empieza por M, o el apellido que va detrás de la coma. Para eso hay que saber trabajar con el texto por dentro: las [**cadenas**](10-cadenas.md).
 
 ## Ejercicios
 
