@@ -73,6 +73,13 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .niveles .nv{ border:1.5px solid var(--acento); border-radius:4px; padding:3px 6px; background:#fff; }
 .tz .niveles .nv b{ color:var(--acento); margin-right:4px; }
 .tz .niveles .menor{ color:var(--acento); font-weight:700; }
+.tz .lista{ display:flex; flex-direction:column; gap:8px; border-left:3px solid var(--tinta); padding:2px 0 2px 10px; }
+.tz .elem{ display:flex; flex-direction:column; gap:4px; }
+.tz .elem-cab{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font:600 13.5px/1.2 var(--mono); }
+.tz .elem-cab .tipo{ font:600 9.5px/1 var(--titulo); letter-spacing:.06em; text-transform:uppercase; color:var(--acento); border:1px solid var(--acento); border-radius:3px; padding:2px 4px; }
+.tz .elem-cab .lon{ font:400 12px/1 var(--texto); color:var(--banda); }
+.tz .elem.cambia > .elem-cab .nom{ color:var(--acento); }
+.tz .elem .lista{ border-left-color:var(--filete); }
 .tz .cas.cambia .v{ background:var(--suave); border-color:var(--acento); position:relative; z-index:1; }
 .tz .cas.foco .v{ border:3px solid var(--acento); background:var(--suave); position:relative; z-index:2; }
 .tz .cas.foco .idx{ color:var(--acento); font-weight:600; }
@@ -211,6 +218,28 @@ function dibujaTraza(el, C, D) {
     const ahora = mp ? mp.vars : p.estado, antes = mp ? (ma && ma.id === mp.id ? ma.vars : {}) : prev.estado;
     for (const n of Object.keys(ahora)) {
       const a = antes[n], b = ahora[n];
+      if (!a && b.el) {
+        const noms = b.el.map((e, i) => e.nombre ? "$" + e.nombre : "[[" + (i + 1) + "]]");
+        const lista = noms.length <= 4 ? noms.map(code).join(", ").replace(/, ([^,]*)$/, " y $1") : "";
+        frases.push("Se crea " + code(n) + ", una lista " + (b.el.length === 1 ? "con un solo elemento" + (lista ? ", " + lista : "") + "."
+          : "de " + b.el.length + " elementos" + (lista ? ": " + lista : "") + ". Cada uno puede ser de un tipo distinto."));
+        continue;
+      }
+      if (a && a.el && b.el && !igual(a, b)) {
+        const nom = (e, i) => e.nombre ? "$" + e.nombre : "[[" + (i + 1) + "]]";
+        const ya = new Set(a.el.map(nom)), ahora2 = new Set(b.el.map(nom));
+        const nuevos = b.el.map(nom).filter(x => !ya.has(x)), idos = a.el.map(nom).filter(x => !ahora2.has(x));
+        if (nuevos.length) frases.push(code(n) + " gana " + nuevos.map(x => code(x)).join(" y ") + ": ahora tiene " + b.el.length + (b.el.length === 1 ? " elemento." : " elementos."));
+        if (idos.length) frases.push(code(n) + " pierde " + idos.map(x => code(x)).join(" y ") + ": ahora tiene " + b.el.length + (b.el.length === 1 ? " elemento." : " elementos."));
+        if (!nuevos.length && !idos.length) {
+          const k = b.el.findIndex((e, i) => !igual(e, a.el[i])), ev = b.el[k].v, av = a.el[k].v;
+          const ruta = n + nom(b.el[k], k);
+          const camb = ev.v && av.v && ev.v.length === av.v.length ? ev.v.map((x, i) => x !== av.v[i] ? i : -1).filter(i => i >= 0) : [];
+          frases.push(camb.length === 1 ? "Cambia " + code(ruta + (ev.v.length > 1 ? "[" + (camb[0] + 1) + "]" : "")) + ": valía " + esc(av.v[camb[0]]) + " y ahora vale " + esc(ev.v[camb[0]]) + "."
+            : "Cambia " + code(ruta) + ".");
+        }
+        continue;
+      }
       if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
       if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
@@ -243,7 +272,36 @@ function dibujaTraza(el, C, D) {
 
   const condicion = p => '<div class="tz-cond"><span>' + esc(p.cond.texto) + '</span><span style="color:var(--banda)">' + esc(p.cond.valores) + '</span><span class="res ' + (p.cond.valor === "TRUE" ? "si" : "no") + '">' + p.cond.valor + "</span></div>";
 
-  // Las variables de un ámbito (el programa principal o una llamada), cada una con sus casillas
+  // Cabecera de un valor: su tipo y su tamaño
+  function cabecera(v) {
+    const lon = v.el ? v.el.length + (v.el.length === 1 ? " elemento" : " elementos")
+      : v.v ? "longitud " + v.v.length + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") : "";
+    return '<span class="tipo">' + esc(v.t) + "</span>" + (lon ? '<span class="lon">' + lon + "</span>" : "");
+  }
+
+  // El dibujo de un valor: casillas para un vector, casillas y niveles para un factor,
+  // y para una lista, una caja por elemento con su nombre ($nombre) o su posición ([[i]])
+  function valor(v, a, op = {}) {
+    if (v.el) {
+      const ant = a && a.el ? a.el : null;
+      return '<div class="lista">' + v.el.map((e, i) => {
+        const ea = ant && ant[i] && ant[i].nombre === e.nombre ? ant[i].v : null;
+        const cambio = a && (!ea || !igual(ea, e.v));
+        return '<div class="elem' + (cambio ? " cambia" : "") + '"><div class="elem-cab"><span class="nom">' + (e.nombre ? "$" + esc(e.nombre) : "[[" + (i + 1) + "]]") + "</span>" + cabecera(e.v) + "</div>" +
+          valor(e.v, ea) + "</div>";
+      }).join("") + (v.el.length ? "" : '<p class="tz-vacio">Lista vacía.</p>') + "</div>";
+    }
+    if (v.v) {
+      if (!v.v.length) return '<div class="otro">' + (v.t === "NULL" ? "NULL" : esc(v.t) + "(0), vacío") + "</div>";
+      let html = casillas(v, a, op);
+      if (v.niveles) html += '<div class="niveles"><span class="que">niveles</span>' +
+        v.niveles.map((l, j) => '<span class="nv"><b>' + (j + 1) + "</b>" + esc(l) + "</span>").join(v.ord ? '<span class="menor">&lt;</span>' : "") + "</div>";
+      return html;
+    }
+    return '<div class="otro">' + esc(v.r || v.t) + "</div>";
+  }
+
+  // Las variables de un ámbito (el programa principal o una llamada)
   function variables(est, ant, conFoco) {
     let html = "";
     const nombres = Object.keys(est);
@@ -251,19 +309,13 @@ function dibujaTraza(el, C, D) {
     for (const n of orden) {
       const v = est[n], a = ant && ant[n];
       const cambio = !a || !igual(a, v);
-      html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + '</span><span class="tipo">' + esc(v.t) + "</span>" +
-        (v.v ? '<span class="lon">longitud ' + v.v.length + (v.niveles ? " · " + v.niveles.length + (v.niveles.length === 1 ? " nivel" : " niveles") + (v.ord ? ", ordenados" : "") : "") + "</span>" : "") + "</div>";
-      if (v.v) {
-        const foco = conFoco && n === C.foco && C.puntero && est[C.puntero] && est[C.puntero].v ? Number(est[C.puntero].v[0]) : null;
-        html += casillas(v, a, { grande: conFoco && n === C.foco, foco: foco >= 1 && foco <= v.v.length ? foco : null, puntero: C.puntero });
-        if (v.niveles) html += '<div class="niveles"><span class="que">niveles</span>' +
-          v.niveles.map((l, j) => '<span class="nv"><b>' + (j + 1) + "</b>" + esc(l) + "</span>").join(v.ord ? '<span class="menor">&lt;</span>' : "") + "</div>";
-      } else if (v.r) html += '<div class="otro">' + esc(v.r) + "</div>";
-      else html += '<div class="otro">' + esc(v.t) + "</div>";
-      html += "</div>";
+      const foco = conFoco && n === C.foco && v.v && C.puntero && est[C.puntero] && est[C.puntero].v ? Number(est[C.puntero].v[0]) : null;
+      html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + "</span>" + cabecera(v) + "</div>" +
+        valor(v, a, { grande: conFoco && n === C.foco, foco: foco >= 1 && foco <= (v.v || []).length ? foco : null, puntero: C.puntero }) + "</div>";
     }
     return html;
   }
+
 
   function memoria(p, prev) {
     const M = p.marcos || [];
@@ -359,6 +411,7 @@ const EJEMPLOS = [
   { nombre: "Un while que cuenta", codigo: 'n <- 1\npasos <- 0\nwhile (n < 100) {\n  n <- n * 3\n  pasos <- pasos + 1\n}\npasos' },
   { nombre: "Una función", codigo: 'iva <- function(precio, tipo = 0.21) {\n  impuesto <- precio * tipo\n  precio + impuesto\n}\np <- iva(100)\nq <- iva(50, tipo = 0.10)\np + q' },
   { nombre: "Recursión", codigo: 'factorial <- function(n) {\n  if (n <= 1) {\n    return(1)\n  }\n  n * factorial(n - 1)\n}\nfactorial(4)' },
+  { nombre: "Una lista", codigo: 'alumno <- list(nombre = "Marta", notas = c(7, 8.5, 6))\nalumno$notas[2] <- 9\nalumno$grupo <- "1ºB"\nmedia <- mean(alumno$notas)\nstr(alumno)' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `

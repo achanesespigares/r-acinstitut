@@ -33,8 +33,18 @@ un_valor <- function(e) {
   format(e, digits = 7)
 }
 
-describe <- function(x) {
+describe <- function(x, prof = 0) {
   if (is.function(x)) return(list(t = "function"))
+  if (is.list(x) && !is.data.frame(x) && is.null(attr(x, "class", exact = TRUE)) && prof < 4 && length(x) <= 30) {
+    # una lista: cada elemento con su nombre (o su posición) y su valor, que puede ser otra lista
+    nom <- names(x)
+    el <- lapply(seq_along(x), function(i) {
+      e <- list(v = describe(x[[i]], prof + 1))
+      if (!is.null(nom) && !is.na(nom[i]) && nzchar(nom[i])) e$nombre <- nom[i]
+      e
+    })
+    return(list(t = "list", el = el))
+  }
   if (is.factor(x)) {                       # un factor: las etiquetas, los códigos enteros y los niveles
     etq <- as.character(x); cod <- as.integer(x)
     out <- list(t = "factor", v = as.list(ifelse(is.na(etq), "NA", etq)), k = as.list(ifelse(is.na(cod), "NA", as.character(cod))),

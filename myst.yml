@@ -27,6 +27,7 @@ project:
     - title: Parte II · Estructuras de datos
       children:
         - file: capitulos/06-factores.md
+        - file: capitulos/07-listas.md
 site:
   template: book-theme
   options:

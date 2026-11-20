@@ -164,7 +164,7 @@ R trae los factores de serie, porque nació para la estadística, donde las vari
 
 ## La grieta
 
-Todos los vectores que hemos visto guardan un solo tipo de dato: números, textos, lógicos o categorías. Pero la ficha de un alumno lo mezcla todo: su nombre es un texto, sus notas son un vector de números, su calificación es una categoría y «repite curso» es un `TRUE` o un `FALSE`. Un vector no puede guardar todo eso junto sin convertirlo en texto. Hace falta un contenedor que admita piezas de tipos distintos: las **listas**.
+Todos los vectores que hemos visto guardan un solo tipo de dato: números, textos, lógicos o categorías. Pero la ficha de un alumno lo mezcla todo: su nombre es un texto, sus notas son un vector de números, su calificación es una categoría y «repite curso» es un `TRUE` o un `FALSE`. Un vector no puede guardar todo eso junto sin convertirlo en texto. Hace falta un contenedor que admita piezas de tipos distintos: las [**listas**](07-listas.md).
 
 ## Ejercicios
 
