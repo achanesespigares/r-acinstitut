@@ -169,7 +169,7 @@ La ficha cambia de nombre (`DESCRIPTION`, `pyproject.toml`, `Project.toml`), per
 
 ## La grieta
 
-Ya tenemos funciones que avisan cuando algo va mal, probadas, documentadas y empaquetadas, e informes que se escriben solos. Pero quien los usa tiene que saber R: escribir `nota_final(c(6, 8), c(0.4, 0.6))` en una consola, o generar el informe cambiando un parámetro. La profesora del capítulo 25 querría que sus alumnos movieran un deslizador con su nota de cada examen y vieran al momento su nota final, sin escribir una línea de código. ¿Se puede convertir un análisis de R en una **página web interactiva**, con botones, deslizadores y gráficos que cambian solos? Es lo que hace **Shiny**, el siguiente capítulo.
+Ya tenemos funciones que avisan cuando algo va mal, probadas, documentadas y empaquetadas, e informes que se escriben solos. Pero quien los usa tiene que saber R: escribir `nota_final(c(6, 8), c(0.4, 0.6))` en una consola, o generar el informe cambiando un parámetro. La profesora del capítulo 25 querría que sus alumnos movieran un deslizador con su nota de cada examen y vieran al momento su nota final, sin escribir una línea de código. ¿Se puede convertir un análisis de R en una **página web interactiva**, con botones, deslizadores y gráficos que cambian solos? Es lo que hace [**Shiny**](27-shiny.md), el siguiente capítulo.
 
 ## Ejercicios
 
