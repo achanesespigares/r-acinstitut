@@ -32,6 +32,9 @@ project:
         - file: capitulos/09-data-frames.md
         - file: capitulos/10-cadenas.md
         - file: capitulos/11-fechas.md
+    - title: Parte III · Análisis de datos
+      children:
+        - file: capitulos/12-leer-datos.md
 site:
   template: book-theme
   options:

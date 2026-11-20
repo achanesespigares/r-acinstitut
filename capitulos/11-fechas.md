@@ -156,7 +156,7 @@ Los tres guardan una fecha como un número de días a partir de un día de refer
 
 ## La grieta
 
-Con este capítulo se cierra la parte II: ya sabes guardar y manejar números, textos, categorías, fechas, listas, matrices y tablas. Pero todos los datos los hemos escrito a mano, dentro del programa. Los datos de verdad llegan en archivos: un CSV descargado de una web pública, una hoja de Excel de secretaría, miles de filas que nadie va a teclear. La parte III empieza por ahí: **leer datos**.
+Con este capítulo se cierra la parte II: ya sabes guardar y manejar números, textos, categorías, fechas, listas, matrices y tablas. Pero todos los datos los hemos escrito a mano, dentro del programa. Los datos de verdad llegan en archivos: un CSV descargado de una web pública, una hoja de Excel de secretaría, miles de filas que nadie va a teclear. La parte III empieza por ahí: [**leer datos**](12-leer-datos.md).
 
 ## Ejercicios
 

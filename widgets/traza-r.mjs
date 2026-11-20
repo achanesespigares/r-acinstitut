@@ -21,6 +21,7 @@ const ESTILOS = `
 .tz-idea{ border-left:4px solid var(--acento); padding:2px 0 2px 12px; color:var(--sub); }
 .tz-escena{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
 .tz-col{ display:flex; flex-direction:column; gap:12px; }
+.tz.amplio .tz-escena{ grid-template-columns:minmax(0,1fr); }   /* tuberías y gráficos: una sola columna, más ancha */
 .tz-caja{ border:2px solid var(--tinta); background:#fff; }
 .tz-barra{ background:var(--acento); color:#fff; padding:6px 12px; font:600 10.5px/1.2 var(--titulo); letter-spacing:.12em;
   text-transform:uppercase; display:flex; justify-content:space-between; gap:2px 8px; flex-wrap:wrap; }
@@ -65,7 +66,13 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
   justify-content:center; font:600 16px/1 var(--mono); background:#fff; transition:background .25s; }
 .tz .cas:first-child .v{ margin-left:0; }
 .tz .cas .idx{ font:500 11.5px/1 var(--mono); color:var(--banda); }
-.tz .cas .v{ position:relative; white-space:pre; }   /* los espacios de un texto se ven, como en R */
+.tz .cas .v{ position:relative; white-space:pre; }
+.tz .fila-vert{ display:flex; flex-direction:column; border:2px solid var(--tinta); overflow-x:auto; }
+.tz .cas-v{ display:flex; gap:10px; align-items:baseline; padding:6px 8px; border-top:1px solid var(--filete); background:#fff; }
+.tz .cas-v:first-child{ border-top:0; }
+.tz .cas-v .idx{ font:500 11.5px/1 var(--mono); color:var(--banda); flex:none; min-width:2.6em; }
+.tz .cas-v .v{ font:600 13.5px/1.35 var(--mono); white-space:pre-wrap; word-break:break-all; }
+.tz .cas-v.cambia{ background:var(--suave); }   /* los espacios de un texto se ven, como en R */
 .tz .cas .cod{ position:absolute; top:2px; left:3px; font:600 9.5px/1 var(--mono); color:var(--acento); }
 .tz .cas.na .v{ color:var(--banda); font-style:italic; }
 .tz .niveles{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font:500 12.5px/1.2 var(--mono); color:var(--sub); margin-top:2px; }
@@ -100,6 +107,17 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz table.df td.cambia{ background:var(--suave); color:var(--acento); font-weight:700; }
 .tz table.df tr.foco th, .tz table.df tr.foco td{ background:var(--suave); }
 .tz table.df tr.foco th{ color:var(--acento); font-weight:700; box-shadow:inset 4px 0 0 var(--acento); }
+.tz .tuberia{ border:2px solid var(--tinta); background:#fff; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.tz .tub-cab{ font:600 10px/1 var(--titulo); letter-spacing:.1em; text-transform:uppercase; color:var(--banda); }
+.tz .tub-etapas{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font:500 12.5px/1.3 var(--mono); }
+.tz .tub-etapas .et{ border:1.5px solid var(--filete); border-radius:5px; padding:4px 7px; background:var(--fondo); color:var(--sub); }
+.tz .tub-etapas .et.hecha{ border-color:var(--tinta); color:var(--tinta); background:#fff; }
+.tz .tub-etapas .et.ahora{ border-color:var(--acento); background:var(--suave); color:var(--acento); font-weight:700; }
+.tz .tub-etapas .flecha-t{ color:var(--banda); font-weight:700; }
+.tz .tub-sale{ font:600 10px/1 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--acento); margin-top:2px; }
+.tz .grafico{ border:2px solid var(--tinta); background:#fff; padding:6px; }
+.tz .grafico img{ display:block; width:100%; height:auto; }
+.tz table.df tr.mas td{ color:var(--banda); font-style:italic; text-align:left; border-bottom:0; }
 .tz .capa{ font:600 11.5px/1 var(--mono); color:var(--banda); margin:6px 0 3px; }
 .tz .cas.cambia .v{ background:var(--suave); border-color:var(--acento); position:relative; z-index:1; }
 .tz .cas.foco .v{ border:3px solid var(--acento); background:var(--suave); position:relative; z-index:2; }
@@ -182,6 +200,7 @@ function dibujaTraza(el, C, D) {
   el.innerHTML = '<style>' + ESTILOS + '</style><div class="tz">' + PLANTILLA + "</div>";
   const q = s => el.querySelector(s);
   const P = D.pasos, L = D.codigo.split("\n"), cols = C.columnas || [];
+  if (P.some(p => p.tipo === "etapa" || p.tipo === "capa" || p.imagen)) q(".tz").classList.add("amplio");
   const porLinea = C.fila_en === "cada_linea";
   let k = 0, timer = null;
 
@@ -219,6 +238,15 @@ function dibujaTraza(el, C, D) {
     { const lt = (L[p.linea - 1] || "").trim();
       if (/^break\b/.test(lt)) return "Se ejecuta <code>break</code>: R sale del bucle en este mismo momento, sin terminar la vuelta.";
       if (/^next\b/.test(lt)) return "Se ejecuta <code>next</code>: R deja esta vuelta a medias y salta a la siguiente."; }
+    if (p.tipo === "etapa") {
+      if (p.etapa === 0) return "Empieza una tubería de " + p.total + (p.total === 1 ? " etapa" : " etapas") + ". Entra " + code(p.texto) + ": " + resumen(p.valor) + ".";
+      return "Etapa " + p.etapa + " de " + p.total + ": " + code(p.texto) + " recibe lo que sale de la etapa anterior y devuelve " + resumen(p.valor) + "." +
+        (p.etapa === p.total ? " Es el resultado de la tubería." : "");
+    }
+    if (p.tipo === "capa") {
+      if (p.etapa === 0) return code(p.texto) + " prepara el lienzo: los datos y qué columna va a cada eje. Todavía no hay nada dibujado; cada capa que se suma con " + code("+") + " añade algo.";
+      return "Capa " + p.etapa + " de " + p.total + ": se suma " + code(p.texto) + "." + (p.etapa === p.total ? " El gráfico está completo." : "");
+    }
     if (p.tipo === "llamada") {
       const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
       return "Se llama a " + code(m.llamada) + ". R le da a la función un espacio propio en la memoria" +
@@ -243,7 +271,7 @@ function dibujaTraza(el, C, D) {
         const tip = c => c.nombre + " (" + tipoCol(c) + ")";
         const y = arr => arr.join(", ").replace(/, ([^,]*)$/, " y $1");
         const forma = b.nf + (b.nf === 1 ? " fila" : " filas") + " y " + b.cols.length + (b.cols.length === 1 ? " columna" : " columnas");
-        if (!a || !a.cols) { frases.push("Se crea " + code(n) + ", un data frame de " + forma + (b.cols.length <= 5 ? ": " + y(b.cols.map(tip)) : "") + ". Cada columna es un vector con su propio tipo."); continue; }
+        if (!a || !a.cols) { frases.push("Se crea " + code(n) + ", " + (b.tibble ? "un tibble (un data frame a la manera del tidyverse)" : "un data frame") + " de " + forma + (b.cols.length <= 5 ? ": " + y(b.cols.map(tip)) : "") + ". Cada columna es un vector con su propio tipo."); continue; }
         const nA = new Set(a.cols.map(c => c.nombre)), nB = new Set(b.cols.map(c => c.nombre));
         const nuevas = b.cols.filter(c => !nA.has(c.nombre)), idas = a.cols.filter(c => !nB.has(c.nombre));
         if (nuevas.length) frases.push(code(n) + " gana " + (nuevas.length === 1 ? "la columna " : "las columnas ") + y(nuevas.map(c => code(c.nombre) + " (" + tipoCol(c) + ")")) + ".");
@@ -319,12 +347,19 @@ function dibujaTraza(el, C, D) {
         (/^\[1\]/.test(nueva[0]) && prev.salida === "" ? " El <code>[1]</code> del principio indica que la fila empieza en el elemento 1." : ""));
       else frases.push("R escribe en la consola " + muestra1 + ".");
     }
+    { const m = (L[p.linea - 1] || "").trim().match(/^(?:library|require)\(\s*["']?([\w.]+)/);
+      if (m && !frases.length) frases.push("Se carga el paquete " + code(m[1]) + ": desde ahora, sus funciones se pueden usar en el programa."); }
+    if (p.imagen && prev && prev.tipo !== "capa") frases.push("R dibuja el gráfico.");
     if (p.avisos) frases.push("Y R da un <b>aviso</b>: el cálculo se hace, pero algo no encaja.");
+    if (!frases.length && prev && (prev.tipo === "etapa" || prev.tipo === "capa")) return prev.tipo === "capa" ? "El gráfico terminado." : "La tubería ha terminado.";
     return frases.length ? frases.join(" ") : "Se ejecuta la línea " + p.linea + ".";
   }
 
   function casillas(v, previo, opciones = {}) {
     const cambia = i => previo && previo.v && previo.v.length === v.v.length && previo.v[i] !== v.v[i];
+    // textos largos (por ejemplo, líneas de un archivo): una casilla por fila, para que se lean enteros
+    if (!opciones.grande && v.v.some(x => String(x).length > 24))
+      return '<div class="fila-vert">' + v.v.map((x, i) => '<div class="cas-v' + (cambia(i) ? " cambia" : "") + '"><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + '</span><span class="v">' + esc(x) + "</span></div>").join("") + "</div>";
     return '<div class="fila-cas' + (opciones.grande ? " grande" + (v.v.some(x => String(x).length > 4) ? " largo" : "") : "") + '">' + v.v.map((x, i) =>
       '<span class="cas' + (cambia(i) ? " cambia" : "") + (opciones.foco === i + 1 ? " foco" : "") + (v.k && x === "NA" ? " na" : "") + '"><span class="v">' +
       (v.k && v.k[i] !== "NA" ? '<span class="cod">' + esc(v.k[i]) + "</span>" : "") + esc(x) + '</span><span class="idx">' + esc(v.n ? v.n[i] : "[" + (i + 1) + "]") + "</span></span>").join("") +
@@ -336,7 +371,7 @@ function dibujaTraza(el, C, D) {
   // Cabecera de un valor: su tipo y su tamaño
   const TIPOS = { double: "numeric", integer: "integer", character: "character", logical: "logical", complex: "complex" };
   function cabecera(v) {
-    if (v.cols) return '<span class="tipo">data.frame</span><span class="lon">' + v.nf + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>";
+    if (v.cols) return '<span class="tipo">' + (v.tibble ? "tibble" : "data.frame") + '</span><span class="lon">' + v.nf + (v.nf === 1 ? " fila" : " filas") + " × " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") + "</span>";
     if (v.d) return '<span class="tipo">' + esc(v.t) + '</span><span class="lon">' + v.d.join(" × ") +
       (v.d.length === 2 ? " (filas × columnas)" : " (filas × columnas × capas)") + " · " + esc(TIPOS[v.tipo] || v.tipo) + "</span>";
     const UNID = { days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" };
@@ -404,7 +439,8 @@ function dibujaTraza(el, C, D) {
     const filasA = a && a.filas ? a.filas : [];
     let html = '<div class="rejilla"><table class="df"><thead><tr><th></th>' + v.cols.map(c =>
       '<th class="' + (antes && !antes[c.nombre] ? "nueva" : "") + '">' + esc(c.nombre) + '<span class="tipo">' + esc(tipoCol(c)) + "</span></th>").join("") + "</tr></thead><tbody>";
-    for (let i = 0; i < v.nf; i++) {
+    const mostradas = v.filas ? v.filas.length : v.nf;
+    for (let i = 0; i < mostradas; i++) {
       const nom = v.filas ? v.filas[i] : String(i + 1), iA = filasA.indexOf(nom);
       html += '<tr class="' + (filaFoco === i + 1 ? "foco" : "") + '"><th>' + esc(nom) + "</th>" + v.cols.map(c => {
         const x = (c.v.v || [])[i] ?? "", ca = antes && antes[c.nombre];
@@ -413,7 +449,36 @@ function dibujaTraza(el, C, D) {
         return '<td class="' + cl + '">' + esc(sinComillas(x)) + "</td>";
       }).join("") + "</tr>";
     }
+    if (v.nf > mostradas) html += '<tr class="mas"><th></th><td colspan="' + v.cols.length + '">… y ' + (v.nf - mostradas).toLocaleString("es-ES") + " filas más</td></tr>";
     return html + "</tbody></table></div>";
+  }
+
+  // Las imágenes de los gráficos: en el laboratorio vienen dentro de la traza (data:); en el libro son
+  // archivos de datos/graficos/, en la raíz del sitio (la misma carpeta de la que sale trazar.R).
+  const img = src => !src ? "" : /^data:/.test(src) ? src : new URL("../" + src, import.meta.url).href;
+
+  // Lo que es un valor, en pocas palabras (para la narración de las tuberías)
+  function resumen(v) {
+    if (!v) return "algo";
+    if (v.cols) return "una tabla de " + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " y " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas");
+    if (v.t === "ggplot") return "un gráfico";
+    if (v.d) return "una matriz de " + v.d.join(" × ");
+    if (v.el) return "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos");
+    if (v.v) return v.v.length === 1 ? "el valor " + code(v.v[0]) : "un vector " + code(v.t) + " de " + v.v.length + " elementos";
+    return "un valor de tipo " + code(v.t);
+  }
+
+  // Una tubería o un gráfico por capas: la cadena de etapas, con la actual resaltada
+  function cadena(p, prev) {
+    const sep = p.tipo === "capa" ? "+" : "|>";
+    // las etapas de esta sentencia: se reconstruyen con los pasos de la misma línea que la rodean
+    const ini = P.indexOf(p) - p.etapa, textos = [];
+    for (let j = 0; j <= p.total; j++) { const q = P[ini + j]; textos.push(q && q.tipo === p.tipo ? q.texto : "…"); }
+    let html = '<div class="tuberia"><span class="tub-cab">' + (p.tipo === "capa" ? "Gráfico por capas · capa " : "Tubería · etapa ") + p.etapa + " de " + p.total + '</span><div class="tub-etapas">' +
+      textos.map((t, j) => '<span class="et' + (j < p.etapa ? " hecha" : j === p.etapa ? " ahora" : "") + '">' + esc(t) + "</span>").join('<span class="flecha-t">' + sep + "</span>") + "</div>";
+    if (p.tipo === "capa") html += '<div class="grafico"><img alt="El gráfico después de esta capa" src="' + img(p.imagen) + '"></div>';
+    else html += '<span class="tub-sale">Lo que sale de esta etapa</span>' + valor(p.valor, null);
+    return html + "</div>";
   }
 
   // Las variables de un ámbito (el programa principal o una llamada)
@@ -438,6 +503,8 @@ function dibujaTraza(el, C, D) {
   function memoria(p, prev) {
     const M = p.marcos || [];
     let html = p.tipo === "condicion" ? condicion(p) : "";
+    if (p.tipo === "etapa" || p.tipo === "capa") html += cadena(p, prev);
+    else if (p.imagen) html += '<div class="grafico"><img alt="El gráfico que dibuja esta línea" src="' + img(p.imagen) + '"></div>';
     const hayGlobal = Object.keys(p.estado).length;
     if (!M.length && !hayGlobal) html += '<p class="tz-vacio">Todavía no hay ninguna variable.</p>';
     if (M.length) html += '<span class="tz-ambito">Programa principal</span>' + (hayGlobal ? "" : '<p class="tz-vacio">Sin variables.</p>');
@@ -472,8 +539,14 @@ function dibujaTraza(el, C, D) {
     const p = P[k], prev = P[Math.max(0, k - 1)];
     el.querySelectorAll(".ln").forEach(n => n.classList.remove("hecha", "error", "espera"));
     (p.marcos || []).forEach(m => { const ln = m.desde && el.querySelector('.ln[data-n="' + m.desde + '"]'); if (ln && m.desde !== p.linea) ln.classList.add("espera"); });
-    if (p.linea) { const ln = el.querySelector('.ln[data-n="' + p.linea + '"]'); ln.classList.add("hecha"); if (p.tipo === "error") ln.classList.add("error"); }
-    q(".tz-lin").textContent = p.linea ? "línea " + p.linea : "";
+    let lineaVis = p.linea;
+    if ((p.tipo === "etapa" || p.tipo === "capa") && p.etapa > 0 && p.texto) {
+      // en una tubería escrita en varias líneas, se marca la línea donde está la etapa que se ejecuta
+      const trozo = p.texto.slice(0, 14);
+      for (let j = p.linea - 1; j < L.length && j < p.linea + 30; j++) if (L[j].includes(trozo)) { lineaVis = j + 1; break; }
+    }
+    if (lineaVis) { const ln = el.querySelector('.ln[data-n="' + lineaVis + '"]'); ln.classList.add("hecha"); if (p.tipo === "error") ln.classList.add("error"); }
+    q(".tz-lin").textContent = lineaVis ? "línea " + lineaVis : "";
     q(".tz-narr").innerHTML = narra(p, prev);
     q(".tz-mem").innerHTML = memoria(p, k ? prev : null);
     q(".tz-consola").textContent = p.salida || "";
@@ -533,6 +606,9 @@ const EJEMPLOS = [
   { nombre: "Una tabla", codigo: 'clase <- data.frame(\n  nombre = c("Marta", "Pau", "Sara"),\n  nota = c(7.2, 4.1, 9.5)\n)\nclase$aprobado <- clase$nota >= 5\nmejores <- clase[order(clase$nota, decreasing = TRUE), ]\nmean(clase$nota)' },
   { nombre: "Limpiar textos", codigo: 'nombres <- c("marta", "MARTA ", " Pau")\nx <- trimws(nombres)\nlimpios <- paste0(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))))\nunique(limpios)' },
   { nombre: "Fechas", codigo: 'entregas <- as.Date(c("2024-10-15", "2024-11-04", "2024-12-20"))\nhoy <- as.Date("2024-11-01")\nfaltan <- as.integer(entregas - hoy)\nentregas[faltan >= 0]' },
+  { nombre: "Leer datos", codigo: 'pinguinos <- read.csv("datos/pinguinos.csv")\ndim(pinguinos)\nsummary(pinguinos$masa_corporal_g)' },
+  { nombre: "Una tubería", codigo: 'library(dplyr)\npinguinos <- read.csv("datos/pinguinos.csv")\npinguinos |>\n  filter(!is.na(masa_corporal_g)) |>\n  group_by(especie) |>\n  summarise(media = mean(masa_corporal_g))' },
+  { nombre: "Un gráfico por capas", codigo: 'library(ggplot2)\npinguinos <- read.csv("datos/pinguinos.csv")\nggplot(pinguinos, aes(largo_aleta_mm, masa_corporal_g, colour = especie)) +\n  geom_point() +\n  labs(x = "Aleta (mm)", y = "Masa (g)")' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `
@@ -554,6 +630,11 @@ const ESTILOS_LAB = `
 `;
 
 let webRPromesa = null, trazarTexto = null;
+// Paquetes que el laboratorio sabe instalar, y archivos de datos del libro que puede usar
+const PAQUETES = ["dplyr", "readr", "tidyr", "ggplot2", "tibble", "stringr", "lubridate", "forcats", "purrr"];
+const DATOS = ["pinguinos.csv"];
+const instalados = new Set(), copiados = new Set();
+
 async function preparaR(avisa) {
   if (!webRPromesa) webRPromesa = (async () => {
     avisa("Descargando R para el navegador. La primera vez tarda un poco; después queda en caché.");
@@ -622,6 +703,23 @@ function renderLaboratorio(el, C) {
     salida.innerHTML = "";
     try {
       const webR = await preparaR(t => { estado.textContent = t; });
+      // los paquetes que pide el programa (library(), require() o paquete::) se instalan la primera vez
+      const pedidos = [...ta.value.matchAll(/(?:library|require)\(\s*["']?([A-Za-z][\w.]*)["']?\s*\)|\b([A-Za-z][\w.]*)::/g)].map(m => m[1] || m[2]);
+      for (const p of new Set(pedidos)) {
+        if (!PAQUETES.includes(p) || instalados.has(p)) continue;
+        estado.textContent = "Instalando " + p + " (solo la primera vez, tarda unos segundos)…";
+        await webR.installPackages([p], { quiet: true });
+        instalados.add(p);
+      }
+      // los datos del libro: si el programa los usa, se copian a la carpeta datos/ del R del navegador
+      for (const f of DATOS) if (ta.value.includes(f) && !copiados.has(f)) {
+        const r = await fetch(new URL("../datos/" + f, import.meta.url));
+        if (r.ok) {
+          try { await webR.FS.mkdir("/home/web_user/datos"); } catch (er) {}
+          await webR.FS.writeFile("/home/web_user/datos/" + f, new Uint8Array(await r.arrayBuffer()));
+          copiados.add(f);
+        }
+      }
       estado.textContent = "Ejecutando…";
       await webR.FS.writeFile("/home/web_user/lab.R", new TextEncoder().encode(ta.value));
       const tiempo = new Promise((_, no) => setTimeout(() => no(new Error("TIEMPO")), 15000));
@@ -643,7 +741,7 @@ function renderLaboratorio(el, C) {
         estado.textContent = "";
         salida.innerHTML = '<div class="lab-error"><b>El programa tarda demasiado.</b> Puede que tenga un bucle que no termina. He reiniciado R: revisa el código y vuelve a probar.</div>';
         try { (await webRPromesa).close(); } catch (er) {}
-        webRPromesa = null;
+        webRPromesa = null; instalados.clear(); copiados.clear();
       } else {
         estado.textContent = "";
         salida.innerHTML = '<div class="lab-error"><b>No he podido arrancar R en este navegador.</b> Comprueba la conexión y vuelve a probar.<code>' + esc(e.message || e) + "</code></div>";

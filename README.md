@@ -57,3 +57,9 @@ Después, `npm run trazas`. Las claves de `config` están explicadas al principi
 ## Licencia
 
 Antonio Chanes Espigares · CC BY-NC-SA 4.0
+
+## Datos
+
+`datos/pinguinos.csv`: los datos de pingüinos de la estación Palmer (Horst, Hill y Gorman, paquete *palmerpenguins*), con los nombres en español del paquete *datos* (Riva Quiroga y colaboradores). Dominio público, licencia CC0.
+
+Los gráficos de los visualizadores se guardan en `datos/graficos/` al generar las trazas (`npm run trazas`), y el despliegue los copia a la web.

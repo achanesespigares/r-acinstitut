@@ -33,10 +33,12 @@ jobs:
         run: npm ci
       - name: Construir el libro
         run: npx myst build --html
-      - name: Copiar el generador de trazas para el laboratorio
+      - name: Copiar los datos, los gráficos y el generador de trazas
         run: |
           mkdir -p _build/html/datos
           cp herramientas/trazar.R _build/html/datos/
+          cp datos/*.csv _build/html/datos/
+          cp -r datos/graficos _build/html/datos/ 2>/dev/null || true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./_build/html

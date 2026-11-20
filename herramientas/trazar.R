@@ -23,6 +23,9 @@
 suppressMessages(library(jsonlite))
 
 LIMITE <- 2000
+# Dónde se guardan las imágenes de los gráficos. En el libro, como archivos PNG (las líneas de la traza
+# quedan cortas y MyST las procesa rápido); en el laboratorio (NULL), dentro de la traza.
+CARPETA_GRAFICOS <- NULL
 SIN_VALOR <- structure(list(), class = "sin_valor")   # marca de «la función no ha terminado bien»
 
 # ── Cómo se describe un valor ────────────────────────────────────────────
@@ -30,17 +33,23 @@ un_valor <- function(e) {
   if (is.na(e)) return("NA")
   if (inherits(e, c("Date", "POSIXt"))) return(format(e))
   if (inherits(e, "difftime")) return(format(as.numeric(e), digits = 7))
-  if (is.character(e)) return(paste0('"', e, '"'))
+  if (is.character(e)) return(encodeString(e, quote = '"'))   # como lo escribe R, con las comillas de dentro escapadas
   if (is.logical(e)) return(if (e) "TRUE" else "FALSE")
   format(e, digits = 7)
 }
 
 describe <- function(x, prof = 0) {
   if (is.function(x)) return(list(t = "function"))
-  if (is.data.frame(x) && nrow(x) <= 40 && ncol(x) <= 12) {
-    # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las filas
-    cols <- lapply(names(x), function(n) list(nombre = n, v = describe(x[[n]], prof + 1)))
-    return(list(t = "data.frame", nf = nrow(x), cols = cols, filas = as.list(rownames(x))))
+  if (inherits(x, "ggplot")) return(list(t = "ggplot"))   # un gráfico: se dibuja aparte, como imagen
+  if (is.data.frame(x) && ncol(x) <= 15) {
+    # un data frame: sus columnas, cada una descrita como el vector (o factor) que es, y los nombres de las
+    # filas. Si es grande, solo las primeras filas (nf sigue siendo el total).
+    nf <- nrow(x); m <- if (nf > 12) 8 else nf
+    h <- x[seq_len(m), , drop = FALSE]
+    cols <- lapply(names(x), function(n) list(nombre = n, v = describe(h[[n]], prof + 1)))
+    out <- list(t = "data.frame", nf = nf, cols = cols, filas = as.list(rownames(x)[seq_len(m)]))
+    if (inherits(x, "tbl_df")) out$tibble <- TRUE
+    return(out)
   }
   if (is.list(x) && !is.data.frame(x) && is.null(attr(x, "class", exact = TRUE)) && prof < 4 && length(x) <= 30) {
     # una lista: cada elemento con su nombre (o su posición) y su valor, que puede ser otra lista
@@ -136,7 +145,31 @@ instrumenta <- function(fn, nombre, linea) {
   fn
 }
 
-reescribe <- function(e, linea, nivel) {
+# ¿Es un gráfico de ggplot2 hecho con capas (ggplot(...) + geom_...() + ...)?
+es_gg <- function(x) {
+  while (is.call(x) && identical(x[[1]], as.name("+"))) x <- x[[2]]
+  is.call(x) && as.character(x[[1]])[1] %in% c("ggplot", "::")  && (as.character(x[[1]])[1] == "ggplot" || identical(x[[1]][[3]], as.name("ggplot")))
+}
+lado_derecho <- function(e) if (is.call(e) && as.character(e[[1]])[1] %in% c("<-", "=") && length(e) == 3) e[[3]] else e
+# Cuántas tuberías |> tiene el texto de una sentencia (sin contar las que haya dentro de comillas)
+cuenta_tuberias <- function(txt) {
+  t2 <- gsub('"[^"]*"|\'[^\']*\'', "", txt)
+  if (grepl("(=|\\()\\s*_\\s*[,)]", t2)) return(-1)      # con el comodín _ no se desenrolla
+  lengths(regmatches(t2, gregexpr("\\|>", t2)))
+}
+GRAFICOS_BASE <- c("plot", "hist", "barplot", "boxplot", "pie", "curve", "lines", "points", "abline", "text", "legend",
+                   "title", "mtext", "axis", "grid", "polygon", "segments", "arrows", "rect", "matplot", "pairs",
+                   "stripchart", "dotchart", "mosaicplot", "image", "contour")
+
+reescribe <- function(e, linea, nivel, txt = NULL) {
+  if (nivel == 0 && !is.null(txt)) {
+    d <- lado_derecho(e)
+    if (es_gg(d)) return(call("{", call(".va", linea), call(".grafico", call("quote", e), linea), call(".paso", linea)))
+    np <- cuenta_tuberias(txt)
+    tiene_magrittr <- is.call(d) && identical(d[[1]], as.name("%>%"))
+    if (np > 0 || (np == 0 && tiene_magrittr))
+      return(call("{", call(".va", linea), call(".tuberia", call("quote", e), linea, np), call(".paso", linea)))
+  }
   if (is.call(e)) {
     f <- as.character(e[[1]])[1]
     if (f %in% c("<-", "=") && length(e) == 3 && is.symbol(e[[2]]) && es_funcion(e[[3]]))
@@ -236,10 +269,93 @@ traza <- function(codigo, config) {
   }
 
   ayudas$.va <- function(l) actual <<- l
-  ayudas$.paso <- function(l) { if (por_linea) fila(); anota(list(linea = l, tipo = "linea")) }
+  ayudas$.paso <- function(l) {
+    if (por_linea) fila()
+    paso <- list(linea = l, tipo = "linea")
+    if (!is.null(img_pendiente)) { paso$imagen <- img_pendiente; img_pendiente <<- NULL }
+    anota(paso)
+  }
+  # ── Gráficos: cada uno se guarda como imagen PNG dentro de la traza ──
+  img_pendiente <- NULL; lienzo <- NULL
+  imagen <- function(dibuja) {
+    actual_dev <- grDevices::dev.cur()
+    f <- tempfile(fileext = ".png")
+    grDevices::png(f, width = 720, height = 450, res = 110)
+    tryCatch(dibuja(), finally = { grDevices::dev.off(); if (actual_dev > 1) grDevices::dev.set(actual_dev) })
+    if (!is.null(CARPETA_GRAFICOS)) {
+      dir.create(CARPETA_GRAFICOS, recursive = TRUE, showWarnings = FALSE)
+      nombre <- paste0(unname(tools::md5sum(f)), ".png")
+      file.copy(f, file.path(CARPETA_GRAFICOS, nombre), overwrite = TRUE)
+      return(paste0(CARPETA_GRAFICOS, "/", nombre))
+    }
+    paste0("data:image/png;base64", ",", jsonlite::base64_enc(readBin(f, "raw", file.info(f)$size)))
+  }
+  on.exit(if (!is.null(lienzo) && lienzo %in% grDevices::dev.list()) grDevices::dev.off(lienzo), add = TRUE)
   ayudas$.muestra <- function(e) {
-    v <- withVisible(eval(substitute(e), env))
-    if (v$visible) print(v$value)
+    ex <- substitute(e)
+    if (is.call(ex) && as.character(ex[[1]])[1] %in% GRAFICOS_BASE) {
+      # un gráfico de R base: se dibuja en un lienzo propio y se fotografía (lines(), abline()… añaden al anterior)
+      if (is.null(lienzo) || !(lienzo %in% grDevices::dev.list())) {
+        grDevices::png(tempfile(fileext = ".png"), width = 600, height = 380, res = 96); lienzo <<- grDevices::dev.cur()
+        grDevices::dev.control("enable")
+      } else grDevices::dev.set(lienzo)
+      eval(ex, env)
+      dibujo <- grDevices::recordPlot()
+      img_pendiente <<- imagen(function() grDevices::replayPlot(dibujo))
+      return(invisible())
+    }
+    v <- withVisible(eval(ex, env))
+    if (v$visible) {
+      if (inherits(v$value, "ggplot")) { g <- v$value; img_pendiente <<- imagen(function() print(g)) }
+      else print(v$value)
+    }
+    invisible()
+  }
+  etapa <- function(l, k, n, texto, v, tipo = "etapa", img = NULL) {
+    paso <- list(linea = l, tipo = tipo, etapa = k, total = n, texto = texto, valor = describe(v))
+    if (!is.null(img)) paso$imagen <- img
+    anota(paso)
+  }
+  # Una tubería: se ejecuta etapa a etapa, y se fotografía lo que sale de cada una
+  ayudas$.tuberia <- function(expr, l, n) {
+    asig <- NULL; x <- expr
+    if (is.call(x) && as.character(x[[1]])[1] %in% c("<-", "=")) { asig <- as.character(x[[2]]); x <- x[[3]] }
+    etapas <- list()
+    if (n == 0) {
+      while (is.call(x) && identical(x[[1]], as.name("%>%"))) { etapas <- c(list(x[[3]]), etapas); x <- x[[2]] }
+    } else for (k in seq_len(n)) {
+      if (!is.call(x) || length(x) < 2) break
+      etapas <- c(list(x[-2]), etapas); x <- x[[2]]
+    }
+    v <- eval(x, env)
+    etapa(l, 0, length(etapas), deparse1(x), v)
+    for (k in seq_along(etapas)) {
+      s <- etapas[[k]]
+      if (is.symbol(s)) s <- as.call(list(s))
+      llamada <- as.call(c(as.list(s)[1], list(as.name(".previo")), as.list(s)[-1]))
+      e2 <- new.env(parent = env); assign(".previo", v, envir = e2)
+      v <- eval(llamada, e2)
+      etapa(l, k, length(etapas), deparse1(s), v)
+    }
+    if (!is.null(asig)) assign(asig, v, envir = env)
+    else if (inherits(v, "ggplot")) img_pendiente <<- (function(g) imagen(function() print(g)))(v)
+    else print(v)
+    invisible()
+  }
+  # Un gráfico de ggplot2: se añade capa a capa, y se dibuja después de cada una
+  ayudas$.grafico <- function(expr, l) {
+    asig <- NULL; x <- expr
+    if (is.call(x) && as.character(x[[1]])[1] %in% c("<-", "=")) { asig <- as.character(x[[2]]); x <- x[[3]] }
+    capas <- list()
+    while (is.call(x) && identical(x[[1]], as.name("+"))) { capas <- c(list(x[[3]]), capas); x <- x[[2]] }
+    g <- eval(x, env)
+    etapa(l, 0, length(capas), deparse1(x), g, "capa", imagen(function() print(g)))
+    for (k in seq_along(capas)) {
+      g <- g + eval(capas[[k]], env)
+      etapa(l, k, length(capas), deparse1(capas[[k]]), g, "capa", imagen(function() print(g)))
+    }
+    if (!is.null(asig)) assign(asig, g, envir = env)
+    else img_pendiente <<- pasos[[length(pasos)]]$imagen     # el paso final enseña el gráfico terminado
     invisible()
   }
   ayudas$.cabecera <- function(l) {
@@ -284,7 +400,7 @@ traza <- function(codigo, config) {
   momento <- NULL                            # dónde estaba el programa al saltar el último error
   error <- tryCatch({
     withCallingHandlers({
-      for (j in seq_along(exprs)) eval(reescribe(exprs[[j]], refs[[j]][1], 0), env)
+      for (j in seq_along(exprs)) eval(reescribe(exprs[[j]], refs[[j]][1], 0, paste(as.character(refs[[j]]), collapse = "\n")), env)
       NULL
     }, warning = function(w) {
       avisos <<- c(avisos, conditionMessage(w))
@@ -327,7 +443,10 @@ procesa <- function(fichero) {
   message(fichero, ": ", n, " trazas")
 }
 
-if (!interactive()) for (f in commandArgs(trailingOnly = TRUE)) procesa(f)
+if (!interactive() && length(commandArgs(trailingOnly = TRUE))) {
+  CARPETA_GRAFICOS <- "datos/graficos"       # en el laboratorio (webR) no se llega aquí: las imágenes van en la traza
+  for (f in commandArgs(trailingOnly = TRUE)) procesa(f)
+}
 
 # ── El laboratorio: el navegador (webR) llama a esta función con el código del lector ──
 # Elige sola qué dibujar: si hay un for (i in seq_along(v)), el vector v con el puntero i.
