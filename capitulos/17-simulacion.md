@@ -214,7 +214,7 @@ NumPy sortea de una vez una matriz de 10 000 filas, una por clase, y en cada fil
 
 ## La grieta
 
-En el capítulo 15, una recta pasaba entre los pingüinos y subía unos 50 gramos por cada milímetro de aleta. Pero ¿de dónde sale exactamente esa recta? ¿Cómo de seguros podemos estar de esos 50 gramos? Y, sobre todo, ¿se puede usar para predecir cuánto pesará un pingüino del que solo conocemos la aleta? Ajustar una recta a unos datos, medir su incertidumbre y predecir con ella es construir un **modelo**.
+En el capítulo 15, una recta pasaba entre los pingüinos y subía unos 50 gramos por cada milímetro de aleta. Pero ¿de dónde sale exactamente esa recta? ¿Cómo de seguros podemos estar de esos 50 gramos? Y, sobre todo, ¿se puede usar para predecir cuánto pesará un pingüino del que solo conocemos la aleta? Ajustar una recta a unos datos, medir su incertidumbre y predecir con ella es construir un [**modelo**](18-modelos.md).
 
 ## Ejercicios
 

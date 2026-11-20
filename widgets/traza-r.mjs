@@ -223,6 +223,13 @@ function dibujaTraza(el, C, D) {
   q(".tz-tabla-sub").textContent = porLinea ? "una fila por línea" : "una fila por vuelta";
   q(".tz-nota").textContent = porLinea ? "Cada fila es el estado justo después de ejecutar esa línea." : "La fila de cada vuelta se escribe al terminarla.";
 
+  // Objetos que R imprime como texto: qué son, en una frase
+  const OTROS = {
+    lm: "un modelo lineal (" + code("lm") + "). Por dentro es una lista con los coeficientes, los valores ajustados, los residuos y más; al imprimirlo, R enseña la fórmula y los coeficientes",
+    htest: "el resultado de una prueba estadística (" + code("htest") + "), con su valor p y su intervalo de confianza",
+    table: "una tabla de frecuencias (" + code("table") + ")",
+    function: "una función: guarda sus instrucciones, que no se ejecutan hasta que alguien la llame",
+  };
   const vec = (p, n) => p.estado[n];
   const longitud = v => v && v.v ? (v.nv || v.v.length) : 0;
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -338,7 +345,7 @@ function dibujaTraza(el, C, D) {
       }
       if (!a && b.u) { frases.push("Se crea " + code(n) + ", una diferencia de tiempos (" + code("difftime") + ") medida " + ({ days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" }[b.u] || "en " + b.u) + "."); continue; }
       if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : longitud(b) + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
-      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : ", de tipo " + code(b.t)) + "."); continue; }
+      if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : OTROS[b.t] ? ", " + OTROS[b.t] : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length && !a.nv && !b.nv) {
         const camb = b.v.map((x, i) => x !== a.v[i] ? i : -1).filter(i => i >= 0);
@@ -503,6 +510,7 @@ function dibujaTraza(el, C, D) {
     if (v.cols) return "una tabla de " + v.nf.toLocaleString("es-ES") + (v.nf === 1 ? " fila" : " filas") + " y " + v.cols.length + (v.cols.length === 1 ? " columna" : " columnas") +
       (v.grupos ? ", agrupada por " + v.grupos.map(code).join(" y ") + " (" + v.ngrupos + (v.ngrupos === 1 ? " grupo" : " grupos") + "): las filas no cambian, pero desde aquí cada verbo trabaja grupo a grupo" : "");
     if (v.t === "ggplot") return "un gráfico";
+    if (v.t === "lm") return "un modelo lineal";
     if (v.d) return "una matriz de " + v.d.join(" × ");
     if (v.el) return "una lista de " + v.el.length + (v.el.length === 1 ? " elemento" : " elementos");
     if (v.v) return v.v.length === 1 ? "el valor " + code(v.v[0]) : "un vector " + code(v.t) + " de " + (v.nv || v.v.length).toLocaleString("es-ES") + " elementos";
