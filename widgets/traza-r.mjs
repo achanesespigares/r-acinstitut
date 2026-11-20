@@ -477,7 +477,7 @@ function dibujaTraza(el, C, D) {
       geom_line: "une los puntos con una línea, en el orden del eje horizontal",
       geom_bar: "cuenta cuántas filas hay de cada valor y dibuja una barra para cada uno",
       geom_col: "dibuja una barra por fila, con la altura que ya trae la tabla",
-      geom_histogram: "reparte los valores en intervalos y levanta una barra en cada uno, tan alta como los valores que caen dentro",
+      geom_histogram: /after_stat\(density\)/.test(t) ? "reparte los valores en intervalos y levanta una barra en cada uno, en escala de densidad: el área de todas las barras juntas vale 1" : "reparte los valores en intervalos y levanta una barra en cada uno, tan alta como los valores que caen dentro",
       geom_density: "dibuja una curva suave con la forma de la distribución",
       geom_boxplot: "dibuja una caja por grupo: la raya de dentro es la mediana y la caja abarca la mitad central de los datos",
       geom_smooth: /"lm"/.test(t) ? "calcula la recta que mejor se ajusta a los puntos y la dibuja, con una banda gris de incertidumbre" : "dibuja una curva que resume la tendencia de los puntos",
@@ -485,6 +485,9 @@ function dibujaTraza(el, C, D) {
       geom_text: "escribe un texto en cada punto", labs: "cambia los títulos de los ejes y de la leyenda, sin tocar ningún dato",
       facet_wrap: "parte el gráfico en paneles, uno por cada valor de la variable", facet_grid: "parte el gráfico en una rejilla de paneles",
       coord_flip: "intercambia los ejes", ggtitle: "pone un título al gráfico",
+      stat_function: "dibuja la curva de una función encima del gráfico",
+      geom_qq: "coloca cada dato frente al valor que le tocaría si la distribución fuera normal",
+      geom_qq_line: "traza la recta de referencia: si los datos fueran normales, los puntos caerían sobre ella",
     };
     if (tabla[f]) return tabla[f] + conAes;
     if (/^scale_/.test(f)) return "cambia la escala: cómo se traduce una columna a posición, color o tamaño";

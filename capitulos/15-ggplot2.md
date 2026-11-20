@@ -224,7 +224,7 @@ plotnine copia la gramática de ggplot2 casi palabra por palabra; la diferencia 
 
 ## La grieta
 
-Dibuja el histograma de las adelias solas, `pinguinos |> filter(especie == "Adelia") |> ggplot(aes(x = masa_corporal_g)) + geom_histogram(binwidth = 250)`, y sale una campana: muchos pingüinos alrededor de 3700 g, cada vez menos según te alejas por los dos lados, y casi simétrica. ¿Es casualidad? Si una curva conocida describiera esa campana, se podría responder sin contar pingüinos uno a uno a preguntas como esta: ¿qué proporción de adelias pesa más de 4500 g? Las curvas que describen cómo se reparten los datos son las **distribuciones**.
+Dibuja el histograma de las adelias solas, `pinguinos |> filter(especie == "Adelia") |> ggplot(aes(x = masa_corporal_g)) + geom_histogram(binwidth = 250)`, y sale una campana: muchos pingüinos alrededor de 3700 g, cada vez menos según te alejas por los dos lados, y casi simétrica. ¿Es casualidad? Si una curva conocida describiera esa campana, se podría responder sin contar pingüinos uno a uno a preguntas como esta: ¿qué proporción de adelias pesa más de 4500 g? Las curvas que describen cómo se reparten los datos son las [**distribuciones**](16-distribuciones.md).
 
 ## Ejercicios
 
