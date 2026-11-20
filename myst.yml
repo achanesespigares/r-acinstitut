@@ -47,6 +47,7 @@ project:
         - file: capitulos/20-programacion-funcional.md
         - file: capitulos/21-objetos.md
         - file: capitulos/22-metaprogramacion.md
+        - file: capitulos/23-rendimiento.md
 site:
   template: book-theme
   options:

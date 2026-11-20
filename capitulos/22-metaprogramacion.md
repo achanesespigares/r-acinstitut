@@ -227,7 +227,7 @@ R y Julia tratan el código como un dato más, con la misma idea de árbol: una 
 
 ## La grieta
 
-A estas alturas sabemos escribir el mismo cálculo de muchas maneras: con un bucle `for`, con `map()`, con una operación con vectores, con `Reduce()`, a mano o con dplyr. Todas dan el mismo resultado. Pero ¿tardan lo mismo? Con 333 pingüinos no se nota la diferencia; con diez millones de filas, puede ser la diferencia entre un segundo y una hora. ¿Cómo se mide cuánto tarda un trozo de código, y cómo se averigua en qué se va el tiempo? Es el **rendimiento**.
+A estas alturas sabemos escribir el mismo cálculo de muchas maneras: con un bucle `for`, con `map()`, con una operación con vectores, con `Reduce()`, a mano o con dplyr. Todas dan el mismo resultado. Pero ¿tardan lo mismo? Con 333 pingüinos no se nota la diferencia; con diez millones de filas, puede ser la diferencia entre un segundo y una hora. ¿Cómo se mide cuánto tarda un trozo de código, y cómo se averigua en qué se va el tiempo? Es el [**rendimiento**](23-rendimiento.md).
 
 ## Ejercicios
 

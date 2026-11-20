@@ -414,6 +414,7 @@ function dibujaTraza(el, C, D) {
       }
       if (!a && b.u) { frases.push("Se crea " + code(n) + ", una diferencia de tiempos (" + code("difftime") + ") medida " + ({ days: "en días", weeks: "en semanas", hours: "en horas", mins: "en minutos", secs: "en segundos" }[b.u] || "en " + b.u) + "."); continue; }
       if (!a && b.niveles) { frases.push("Se crea " + code(n) + ", un factor de " + (b.v.length === 1 ? "un elemento" : longitud(b) + " elementos") + " con " + b.niveles.length + " niveles" + (b.ord ? " ordenados" : "") + ". Por dentro guarda un número en cada casilla, el de su nivel (el número pequeño de cada casilla)."); continue; }
+      if (!a && b.t === "NULL") { frases.push("Se crea " + code(n) + ", que vale " + code("NULL") + ": un vector vacío, sin ningún elemento."); continue; }
       if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (longitud(b) === 1 ? "un elemento" : longitud(b).toLocaleString("es-ES") + " elementos") + (b.nv ? ". Aquí se ven los " + b.v.length + " primeros" : "") : OTROS[b.t] ? ", " + OTROS[b.t] + (b.ent ? ". Además, recuerda el entorno donde nació, el de " + code(b.ent) : "") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length && !a.nv && !b.nv) {
@@ -423,7 +424,9 @@ function dibujaTraza(el, C, D) {
         if (camb.length === 1 && b.v.length > 1) frases.push("Cambia " + code(n + "[" + pos(camb[0]) + "]") + ": valía " + esc(a.v[camb[0]]) + " y ahora vale " + esc(b.v[camb[0]]) + ".");
         else if (b.v.length === 1) frases.push(code(n) + " valía " + esc(a.v[0]) + " y ahora vale " + esc(b.v[0]) + ".");
         else frases.push("Cambian " + camb.length + " elementos de " + code(n) + ".");
-      } else frases.push(code(n) + " cambia" + (b.arbol ? ": ahora guarda el código " + code(b.r) + "." : b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + " elementos." : "."));
+      } else if (a.v && b.v && !a.nv && !b.nv && b.v.length === a.v.length + 1 && a.v.every((x, i) => x === b.v[i]))
+        frases.push(code(n) + " se crea de nuevo, un elemento más largo: R " + (a.v.length ? "copia " + (a.v.length === 1 ? "el elemento anterior" : "los " + a.v.length + " elementos anteriores") + " en un vector nuevo y añade " : "pone ") + esc(b.v[b.v.length - 1]) + " al final. Ahora tiene " + b.v.length + (b.v.length === 1 ? " elemento." : " elementos."));
+      else frases.push(code(n) + " cambia" + (b.arbol ? ": ahora guarda el código " + code(b.r) + "." : b.v ? ": ahora tiene " + longitud(b).toLocaleString("es-ES") + (longitud(b) === 1 ? " elemento." : " elementos.") : "."));
     }
     if (mp && mp.pvars && ma && ma.id === mp.id && ma.pvars) {   // cambia el entorno que recuerda una clausura (<<-)
       for (const n of Object.keys(mp.pvars)) {
