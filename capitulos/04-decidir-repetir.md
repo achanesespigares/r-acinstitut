@@ -205,7 +205,7 @@ Las tres piezas son las mismas en los tres lenguajes. Lo que cambia es cómo se 
 
 ## La grieta
 
-El bloque que pone «sobresaliente», «aprobado» o «suspendido» ya funciona. Pero si lo necesitas en tres programas, ¿lo copias tres veces? ¿Y si mañana el aprobado pasa a estar en el 6? Tendrías que cambiarlo en los tres sitios sin olvidarte de ninguno. Hace falta poner un nombre a un trozo de código y reutilizarlo: hacen falta las **funciones**.
+El bloque que pone «sobresaliente», «aprobado» o «suspendido» ya funciona. Pero si lo necesitas en tres programas, ¿lo copias tres veces? ¿Y si mañana el aprobado pasa a estar en el 6? Tendrías que cambiarlo en los tres sitios sin olvidarte de ninguno. Hace falta poner un nombre a un trozo de código y reutilizarlo: hacen falta las [**funciones**](05-funciones.md).
 
 ## Ejercicios
 

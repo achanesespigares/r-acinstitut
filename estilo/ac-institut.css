@@ -24,3 +24,6 @@ article blockquote{ border-left:4px solid var(--ac-acento); background:var(--ac-
 html.solo-base .afondo{ display:none; }
 html.dark .afondo{ border-left-color:#ede7e9; }
 html.dark .afondo::before{ background:#ede7e9; color:#141012; }
+
+/* El código de las tablas no se parte en dos líneas: si no cabe, la tabla se desplaza */
+table code { white-space: nowrap; }

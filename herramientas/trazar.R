@@ -10,7 +10,8 @@
 # Cómo se ejecuta paso a paso: el programa se reescribe antes de ejecutarlo. Detrás de cada línea se
 # añade una llamada que fotografía las variables y la pantalla; en cada vuelta de un for se fotografía
 # la cabecera, y cada condición de un if o un while se fotografía con su resultado. Las funciones del
-# alumno se ejecutan de una vez (todavía no se entra en ellas).
+# alumno también se recorren paso a paso: cada llamada abre su marco (sus argumentos y sus variables
+# locales), y al salir se anota lo que devuelve y la línea a la que vuelve el programa.
 #
 # Claves de "config":
 #   titulo, etiqueta, idea   textos del visualizador
@@ -22,6 +23,7 @@
 suppressMessages(library(jsonlite))
 
 LIMITE <- 2000
+SIN_VALOR <- structure(list(), class = "sin_valor")   # marca de «la función no ha terminado bien»
 
 # ── Cómo se describe un valor ────────────────────────────────────────────
 un_valor <- function(e) {
@@ -77,9 +79,31 @@ sustituye <- function(e, env) {
 }
 
 # ── Reescribir el programa ───────────────────────────────────────────────
+# Una función del alumno: su cuerpo se reescribe igual que el programa, y al entrar y al salir se
+# fotografía su espacio de memoria (el marco). La última línea, si es una expresión, se deja sin paso
+# propio: su valor es lo que la función devuelve, y eso lo cuenta el paso de salida.
+es_funcion <- function(x) is.call(x) && identical(x[[1]], as.name("function"))
+instrumenta <- function(fn, nombre, linea) {
+  b <- fn[[3]]
+  if (!(is.call(b) && identical(b[[1]], as.name("{")))) b <- call("{", b)
+  refs <- attr(b, "srcref")
+  partes <- list(as.name("{"), call(".entra", nombre, linea), quote(on.exit(.sale())))
+  n <- length(b)
+  for (j in seq_along(b)[-1]) {
+    l <- if (!is.null(refs) && length(refs) >= j) refs[[j]][1] else linea
+    x <- b[[j]]
+    control <- is.call(x) && as.character(x[[1]])[1] %in% c("for", "while", "if", "repeat", "<-", "=", "<<-", "{", "return", "print", "cat", "message")
+    partes[[length(partes) + 1]] <- if (j == n && !control) call("{", call(".va", l), x) else reescribe(x, l, 1)
+  }
+  fn[[3]] <- as.call(partes)
+  fn
+}
+
 reescribe <- function(e, linea, nivel) {
   if (is.call(e)) {
     f <- as.character(e[[1]])[1]
+    if (f %in% c("<-", "=") && length(e) == 3 && is.symbol(e[[2]]) && es_funcion(e[[3]]))
+      e[[3]] <- instrumenta(e[[3]], as.character(e[[2]]), linea)
     if (f == "for") {
       e[[4]] <- call("{", call(".cabecera", linea), cuerpo(e[[4]], linea, nivel + 1), call(".fin_vuelta", linea))
       return(call("{", call(".va", linea), e, call(".fin_bucle", linea)))
@@ -107,7 +131,8 @@ reescribe <- function(e, linea, nivel) {
     if (f %in% c("break", "next")) return(call("{", call(".va", linea), call(".paso", linea), e))   # se fotografía antes de saltar
   }
   if (nivel == 0) return(call("{", call(".va", linea), call(".muestra", e), call(".paso", linea)))
-  call("{", call(".va", linea), e, call(".paso", linea))
+  # dentro de un bloque, la sentencia conserva su valor (lo necesita la última línea de una función)
+  call("{", call(".va", linea), call("<-", as.name(".valor"), e), call(".paso", linea), as.name(".valor"))
 }
 
 cuerpo <- function(b, linea, nivel) {
@@ -136,25 +161,41 @@ traza <- function(codigo, config) {
   lee_pantalla <- function() paste(c(textConnectionValue(pantalla), ""), collapse = "\n")
 
   orden <- character(0)                      # las variables, en el orden en que aparecen
+  pila <- list()                             # las llamadas en curso: un marco por llamada
+  nmarcos <- 0
+  aqui <- function() if (length(pila)) pila[[length(pila)]]$env else env
+  lee <- function(n, donde) tryCatch(describe(get(n, envir = donde)),
+                                     error = function(err) list(t = "sin valor", r = "(todavía sin valor)"))
   foto <- function() {
     nombres <- setdiff(ls(env), ocultar)
     orden <<- c(orden, setdiff(nombres, orden))
     nombres <- intersect(orden, nombres)
-    estado <- lapply(nombres, function(n) describe(get(n, envir = env)))
+    estado <- lapply(nombres, lee, donde = env)
     names(estado) <- nombres
     estado
   }
+  foto_marcos <- function() lapply(seq_along(pila), function(k) {
+    m <- pila[[k]]
+    nombres <- ls(m$env)
+    pila[[k]]$orden <<- c(m$orden, setdiff(nombres, m$orden))
+    nombres <- intersect(pila[[k]]$orden, nombres)
+    vars <- lapply(nombres, lee, donde = m$env)
+    names(vars) <- nombres
+    list(id = m$id, nombre = m$nombre, llamada = m$llamada, desde = m$desde, vars = vars)
+  })
   anota <- function(paso) {
     if (length(pasos) >= LIMITE && paso$tipo != "error") stop("el programa da demasiados pasos (más de ", LIMITE, ")")
     paso$estado <- foto()
+    if (length(pila)) paso$marcos <- foto_marcos()
     paso$salida <- lee_pantalla()
     paso$nfilas <- length(filas)
     if (length(avisos)) { paso$avisos <- as.list(avisos); avisos <<- character(0) }
     pasos[[length(pasos) + 1]] <<- paso
   }
   fila <- function() {
+    donde <- aqui()
     filas[[length(filas) + 1]] <<- as.list(vapply(columnas, function(cx)
-      tryCatch(corto(eval(str2lang(cx), env)), error = function(err) ""), ""))
+      tryCatch(corto(eval(str2lang(cx), donde)), error = function(err) ""), ""))
   }
 
   ayudas$.va <- function(l) actual <<- l
@@ -174,8 +215,25 @@ traza <- function(codigo, config) {
     anota(list(linea = l, tipo = "fin", vuelta = if (is.null(vueltas[[as.character(l)]])) 0 else vueltas[[as.character(l)]]))
     vueltas[[as.character(l)]] <<- NULL
   }
+  ayudas$.entra <- function(nombre, l) {
+    marco <- parent.frame()
+    args <- names(formals(sys.function(sys.parent())))
+    vals <- vapply(args, function(a) tryCatch(corto(get(a, envir = marco)), error = function(err) "?"), "")
+    nmarcos <<- nmarcos + 1
+    pila[[length(pila) + 1]] <<- list(id = nmarcos, nombre = nombre, env = marco, orden = args, desde = actual,
+      llamada = paste0(nombre, "(", paste(if (length(args)) paste(args, "=", vals) else character(0), collapse = ", "), ")"))
+    anota(list(linea = l, tipo = "llamada", funcion = nombre))
+  }
+  ayudas$.sale <- function() {
+    v <- returnValue(SIN_VALOR)
+    m <- pila[[length(pila)]]
+    if (!identical(v, SIN_VALOR))
+      anota(list(linea = actual, tipo = "devuelve", funcion = m$nombre, desde = m$desde, valor = corto(v)))
+    pila[[length(pila)]] <<- NULL
+    actual <<- m$desde
+  }
   ayudas$.cond <- function(l, c, texto) {
-    con_valores <- sustituye(str2lang(texto), env)
+    con_valores <- sustituye(str2lang(texto), aqui())
     r <- c
     anota(list(linea = l, tipo = "condicion", cond = list(texto = texto, valores = con_valores,
                                                           valor = if (isTRUE(r)) "TRUE" else "FALSE")))
@@ -186,6 +244,7 @@ traza <- function(codigo, config) {
   refs <- attr(exprs, "srcref")
   pasos[[1]] <- list(linea = NULL, tipo = "inicio", estado = setNames(list(), character(0)), salida = "", nfilas = 0)
   sink(pantalla)
+  momento <- NULL                            # dónde estaba el programa al saltar el último error
   error <- tryCatch({
     withCallingHandlers({
       for (j in seq_along(exprs)) eval(reescribe(exprs[[j]], refs[[j]][1], 0), env)
@@ -193,10 +252,19 @@ traza <- function(codigo, config) {
     }, warning = function(w) {
       avisos <<- c(avisos, conditionMessage(w))
       invokeRestart("muffleWarning")
+    }, error = function(err) {
+      # se ejecuta antes de deshacer las llamadas: así el error se ve dentro de la función, con su marco
+      momento <<- list(linea = actual, estado = foto(), marcos = if (length(pila)) foto_marcos())
     })
   }, error = function(err) conditionMessage(err))
   sink()
-  if (!is.null(error)) anota(list(linea = actual, tipo = "error", error = error))
+  if (!is.null(error)) {
+    paso <- list(linea = if (is.null(momento)) actual else momento$linea, tipo = "error", error = error,
+                 estado = if (is.null(momento)) foto() else momento$estado, salida = lee_pantalla(), nfilas = length(filas))
+    if (!is.null(momento$marcos)) paso$marcos <- momento$marcos
+    if (length(avisos)) paso$avisos <- as.list(avisos)
+    pasos[[length(pasos) + 1]] <- paso
+  }
   list(codigo = codigo, pasos = pasos, filas = filas)
 }
 

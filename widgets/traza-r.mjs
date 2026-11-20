@@ -23,7 +23,8 @@ const ESTILOS = `
 .tz-col{ display:flex; flex-direction:column; gap:12px; }
 .tz-caja{ border:2px solid var(--tinta); background:#fff; }
 .tz-barra{ background:var(--acento); color:#fff; padding:6px 12px; font:600 10.5px/1.2 var(--titulo); letter-spacing:.12em;
-  text-transform:uppercase; display:flex; justify-content:space-between; gap:8px; }
+  text-transform:uppercase; display:flex; justify-content:space-between; gap:2px 8px; flex-wrap:wrap; }
+.tz-barra > *{ white-space:nowrap; }
 .tz-barra.negro{ background:var(--tinta); }
 pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; background:var(--fondo); padding:6px 0; border:0; }
 .tz .ln{ display:flex; align-items:center; white-space:pre; padding-right:12px; border-left:4px solid transparent; min-width:max-content; }
@@ -33,6 +34,15 @@ pre.tz-codigo{ margin:0; font:400 14px/1.85 var(--mono); overflow-x:auto; backgr
 .tz .ln.hecha{ border-left-color:var(--acento); background:var(--suave); }
 .tz .ln.hecha .fl{ color:var(--acento); }
 .tz .ln.error{ background:#F3E3E6; }
+.tz .ln.espera{ border-left:4px dashed var(--acento); }
+.tz .ln.espera .fl{ color:var(--acento); opacity:.45; }
+.tz-ambito{ font:600 10px/1 var(--titulo); letter-spacing:.1em; text-transform:uppercase; color:var(--banda); }
+.tz .marco{ border:2px solid var(--filete); border-left:5px solid var(--filete); padding:8px 10px 10px; display:flex; flex-direction:column; gap:10px; background:#fff; }
+.tz .marco.activo{ border-color:var(--acento); background:var(--suave); }
+.tz .marco-cab{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; font:600 13.5px/1.3 var(--mono); }
+.tz .marco-cab .que{ font:600 9.5px/1 var(--titulo); letter-spacing:.08em; text-transform:uppercase; color:var(--banda); }
+.tz .marco.activo .marco-cab .que{ color:var(--acento); }
+.tz .devuelve{ align-self:flex-start; font:600 13.5px/1 var(--mono); color:#fff; background:var(--acento); border-radius:5px; padding:6px 9px; }
 .tz .kw{ color:var(--acento); font-weight:600; } .tz .str{ color:#4A5A2A; } .tz .num{ color:#1E4A6B; } .tz .com{ color:var(--filete); font-style:italic; }
 .tz-narr{ min-height:4.4em; padding:10px 12px; background:var(--suave); border-left:4px solid var(--acento); }
 .tz-narr code,.tz-cond code{ font:500 13px/1 var(--mono); background:#fff; padding:2px 5px; border-radius:4px; }
@@ -157,7 +167,7 @@ function dibujaTraza(el, C, D) {
 
   function narra(p, prev) {
     if (p.tipo === "inicio") return "El programa está listo. Pulsa «Paso ▶» para ejecutar la primera línea.";
-    if (p.tipo === "error") return "R se detiene en la línea " + p.linea + " con un error. Lo que viene detrás ya no se ejecuta.";
+    if (p.tipo === "error") return "R se detiene en la línea " + p.linea + " con un error" + (p.marcos && p.marcos.length ? ", dentro de " + code(p.marcos[p.marcos.length - 1].llamada) : "") + ". Lo que viene detrás ya no se ejecuta.";
     if (p.tipo === "vuelta") {
       const [, v, sec] = varDelFor(p.linea);
       return v ? "Vuelta " + p.vuelta + " del <code>for</code>: " + code(v) + " toma el elemento " + p.vuelta + " de " + code(sec) + ", que vale " + esc(muestra(vec(p, v))) + "."
@@ -173,14 +183,26 @@ function dibujaTraza(el, C, D) {
     { const lt = (L[p.linea - 1] || "").trim();
       if (/^break\b/.test(lt)) return "Se ejecuta <code>break</code>: R sale del bucle en este mismo momento, sin terminar la vuelta.";
       if (/^next\b/.test(lt)) return "Se ejecuta <code>next</code>: R deja esta vuelta a medias y salta a la siguiente."; }
+    if (p.tipo === "llamada") {
+      const m = p.marcos[p.marcos.length - 1], args = Object.keys(m.vars);
+      return "Se llama a " + code(m.llamada) + ". R le da a la función un espacio propio en la memoria" +
+        (args.length ? ", con sus argumentos: " + args.map(a => code(a) + " vale " + esc(muestra(m.vars[a]))).join(", ") : "") +
+        ". El programa salta a la función" + (m.desde ? " y la línea " + m.desde + " se queda esperando el resultado." : ".");
+    }
+    if (p.tipo === "devuelve")
+      return code(p.funcion) + " termina y devuelve " + code(p.valor) + ". Su espacio en la memoria desaparece, con todas sus variables, y el programa vuelve a la línea " + p.desde + ", que usa ese resultado.";
     if (p.tipo === "condicion") {
       const si = p.cond.valor === "TRUE", esWhile = /^\s*while\b/.test(L[p.linea - 1]);
       return "Se comprueba " + code(p.cond.texto) + (p.cond.valores !== p.cond.texto ? ": con los valores de ahora, " + code(p.cond.valores) : "") + ", que es " + code(p.cond.valor) + ". " +
         (esWhile ? (si ? "El <code>while</code> da otra vuelta." : "El <code>while</code> se detiene.") : (si ? "Se entra en el bloque del <code>if</code>." : "Se salta el bloque del <code>if</code>" + (/else/.test(L.slice(p.linea - 1).join(" ")) ? " y se va al <code>else</code>." : ".")));
     }
     const frases = [];
-    for (const n of Object.keys(p.estado)) {
-      const a = prev.estado[n], b = p.estado[n];
+    // se comparan las variables del ámbito que se está ejecutando: la llamada en curso o el programa principal
+    const marco = x => x.marcos && x.marcos.length ? x.marcos[x.marcos.length - 1] : null;
+    const mp = marco(p), ma = marco(prev);
+    const ahora = mp ? mp.vars : p.estado, antes = mp ? (ma && ma.id === mp.id ? ma.vars : {}) : prev.estado;
+    for (const n of Object.keys(ahora)) {
+      const a = antes[n], b = ahora[n];
       if (!a) { frases.push("Se crea " + code(n) + (b.v ? ", un vector " + code(b.t) + " de " + (b.v.length === 1 ? "un elemento" : b.v.length + " elementos") : ", de tipo " + code(b.t)) + "."); continue; }
       if (igual(a, b)) continue;
       if (a.v && b.v && a.v.length === b.v.length) {
@@ -194,7 +216,7 @@ function dibujaTraza(el, C, D) {
       const nueva = p.salida.slice(prev.salida.length).trim().split("\n");
       const linea = (L[p.linea - 1] || "").trim();
       const muestra1 = nueva.length === 1 ? code(nueva[0]) : "varias líneas";
-      if (/^[\w.]+$/.test(linea) && p.estado[linea]) frases.push("Escribir solo " + code(linea) + " hace que R muestre su valor en la consola: " + muestra1 + "." +
+      if (/^[\w.]+$/.test(linea) && ahora[linea]) frases.push("Escribir solo " + code(linea) + " hace que R muestre su valor en la consola: " + muestra1 + "." +
         (/^\[1\]/.test(nueva[0]) && prev.salida === "" ? " El <code>[1]</code> del principio indica que la fila empieza en el elemento 1." : ""));
       else frases.push("R escribe en la consola " + muestra1 + ".");
     }
@@ -209,28 +231,49 @@ function dibujaTraza(el, C, D) {
       (opciones.foco ? '<span class="puntero"><span class="et">' + esc(opciones.puntero) + " = " + opciones.foco + '</span><span class="flecha"></span></span>' : "") + "</div>";
   }
 
-  function memoria(p, prev) {
-    const nombres = Object.keys(p.estado);
-    if (!nombres.length) return '<p class="tz-vacio">Todavía no hay ninguna variable.</p>';
-    const orden = C.foco && nombres.includes(C.foco) ? [C.foco].concat(nombres.filter(n => n !== C.foco)) : nombres;
+  const condicion = p => '<div class="tz-cond"><span>' + esc(p.cond.texto) + '</span><span style="color:var(--banda)">' + esc(p.cond.valores) + '</span><span class="res ' + (p.cond.valor === "TRUE" ? "si" : "no") + '">' + p.cond.valor + "</span></div>";
+
+  // Las variables de un ámbito (el programa principal o una llamada), cada una con sus casillas
+  function variables(est, ant, conFoco) {
     let html = "";
-    if (p.tipo === "condicion") html += '<div class="tz-cond"><span>' + esc(p.cond.texto) + '</span><span style="color:var(--banda)">' + esc(p.cond.valores) + '</span><span class="res ' + (p.cond.valor === "TRUE" ? "si" : "no") + '">' + p.cond.valor + "</span></div>";
+    const nombres = Object.keys(est);
+    const orden = conFoco && C.foco && nombres.includes(C.foco) ? [C.foco].concat(nombres.filter(n => n !== C.foco)) : nombres;
     for (const n of orden) {
-      const v = p.estado[n], a = prev && prev.estado[n];
+      const v = est[n], a = ant && ant[n];
       const cambio = !a || !igual(a, v);
-      html += '<div class="vec' + (cambio && p.tipo !== "inicio" ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + '</span><span class="tipo">' + esc(v.t) + "</span>" +
+      html += '<div class="vec' + (cambio && ant ? " cambia" : "") + '"><div class="vec-cab"><span class="nom">' + esc(n) + '</span><span class="tipo">' + esc(v.t) + "</span>" +
         (v.v ? '<span class="lon">longitud ' + v.v.length + "</span>" : "") + "</div>";
       if (v.v) {
-        const foco = n === C.foco && C.puntero && p.estado[C.puntero] && p.estado[C.puntero].v ? Number(p.estado[C.puntero].v[0]) : null;
-        html += casillas(v, a, { grande: n === C.foco, foco: foco >= 1 && foco <= v.v.length ? foco : null, puntero: C.puntero });
+        const foco = conFoco && n === C.foco && C.puntero && est[C.puntero] && est[C.puntero].v ? Number(est[C.puntero].v[0]) : null;
+        html += casillas(v, a, { grande: conFoco && n === C.foco, foco: foco >= 1 && foco <= v.v.length ? foco : null, puntero: C.puntero });
       } else if (v.r) html += '<div class="otro">' + esc(v.r) + "</div>";
       else html += '<div class="otro">' + esc(v.t) + "</div>";
       html += "</div>";
     }
+    return html;
+  }
+
+  function memoria(p, prev) {
+    const M = p.marcos || [];
+    let html = p.tipo === "condicion" ? condicion(p) : "";
+    const hayGlobal = Object.keys(p.estado).length;
+    if (!M.length && !hayGlobal) html += '<p class="tz-vacio">Todavía no hay ninguna variable.</p>';
+    if (M.length) html += '<span class="tz-ambito">Programa principal</span>' + (hayGlobal ? "" : '<p class="tz-vacio">Sin variables.</p>');
+    html += variables(p.estado, prev && prev.estado, true);
+    // una caja por cada llamada en curso; la última es la que se está ejecutando
+    const antes = prev && prev.marcos ? Object.fromEntries(prev.marcos.map(m => [m.id, m.vars])) : {};
+    M.forEach((m, i) => {
+      const activo = i === M.length - 1;
+      html += '<div class="marco' + (activo ? " activo" : "") + '"><div class="marco-cab"><span>' + esc(m.llamada) + '</span><span class="que">' +
+        (activo ? "llamada en curso" : "esperando a " + esc(M[i + 1].nombre)) + "</span></div>" +
+        (Object.keys(m.vars).length ? variables(m.vars, antes[m.id], false) : '<p class="tz-vacio">Sin variables.</p>') +
+        (activo && p.tipo === "devuelve" ? '<span class="devuelve">devuelve ' + esc(p.valor) + "</span>" : "") + "</div>";
+    });
     if (p.avisos) html += '<div class="tz-aviso"><b>Aviso de R</b><br>' + p.avisos.map(esc).join("<br>") + "</div>";
     if (p.tipo === "error") html += '<div class="tz-error"><b>Error de R</b><br>' + esc(p.error) + "</div>";
     return html;
   }
+
 
   function coloca() {                          // el puntero, sobre su casilla
     const f = el.querySelector(".grande"); if (!f) return;
@@ -245,7 +288,8 @@ function dibujaTraza(el, C, D) {
 
   function pinta() {
     const p = P[k], prev = P[Math.max(0, k - 1)];
-    el.querySelectorAll(".ln").forEach(n => n.classList.remove("hecha", "error"));
+    el.querySelectorAll(".ln").forEach(n => n.classList.remove("hecha", "error", "espera"));
+    (p.marcos || []).forEach(m => { const ln = m.desde && el.querySelector('.ln[data-n="' + m.desde + '"]'); if (ln && m.desde !== p.linea) ln.classList.add("espera"); });
     if (p.linea) { const ln = el.querySelector('.ln[data-n="' + p.linea + '"]'); ln.classList.add("hecha"); if (p.tipo === "error") ln.classList.add("error"); }
     q(".tz-lin").textContent = p.linea ? "línea " + p.linea : "";
     q(".tz-narr").innerHTML = narra(p, prev);
@@ -301,6 +345,8 @@ const EJEMPLOS = [
   { nombre: "El reciclado", codigo: 'x <- c(10, 20, 30, 40, 50)\ny <- c(1, 2)\nz <- numeric(length(x))\nfor (i in seq_along(x)) {\n  j <- (i - 1) %% length(y) + 1\n  z[i] <- x[i] + y[j]\n}\nz' },
   { nombre: "Sumar con un for", codigo: 'notas <- c(7, 4, 9, 6)\ntotal <- 0\nfor (k in seq_along(notas)) {\n  total <- total + notas[k]\n}\ntotal / length(notas)' },
   { nombre: "Un while que cuenta", codigo: 'n <- 1\npasos <- 0\nwhile (n < 100) {\n  n <- n * 3\n  pasos <- pasos + 1\n}\npasos' },
+  { nombre: "Una función", codigo: 'iva <- function(precio, tipo = 0.21) {\n  impuesto <- precio * tipo\n  precio + impuesto\n}\np <- iva(100)\nq <- iva(50, tipo = 0.10)\np + q' },
+  { nombre: "Recursión", codigo: 'factorial <- function(n) {\n  if (n <= 1) {\n    return(1)\n  }\n  n * factorial(n - 1)\n}\nfactorial(4)' },
   { nombre: "Tipos y conversión", codigo: 'edad <- 17L\naltura <- 1.74\nnombre <- "Lucía"\nmayor <- edad >= 18\nas.numeric("hola")' },
 ];
 const ESTILOS_LAB = `

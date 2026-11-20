@@ -23,6 +23,7 @@ project:
         - file: capitulos/02-vectores.md
         - file: capitulos/03-indices-filtros.md
         - file: capitulos/04-decidir-repetir.md
+        - file: capitulos/05-funciones.md
 site:
   template: book-theme
   options:
